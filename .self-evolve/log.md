@@ -175,3 +175,15 @@
   - Core business logic (EnConvo call, parsing, file delivery, delegations, error handling) now in ONE place
   - Channel handlers are thin wrappers: createTelegramIO / createDiscordIO implement ChannelIO
   - Adding new channels now only requires implementing ChannelIO (sendText, sendFile, startTyping)
+
+## [2026-03-02 07:29] Self-Evolve Round 19: Config store CRUD integration tests
+- **Status:** success
+- **Tests:** 189/189 passing (17 suites, +21 new tests)
+- **Notes:**
+  - Added `src/config/__tests__/store-crud.test.ts` with mocked paths module
+  - Tests: loadGlobalConfig defaults, saveGlobalConfig file creation, ensureConfigDir
+  - Tests: setChannelInstance add/overwrite, getChannelInstance, removeChannelInstance (delete/disable)
+  - Tests: listChannelInstances, channel cleanup on last instance delete
+  - Tests: setChannelGroup, getChannelGroup, removeChannelGroup, listChannelGroups
+  - Tests: resolveChatId (--chat, --group, missing, unknown group)
+  - Tests: v1→v2 migration, corrupted JSON graceful fallback
