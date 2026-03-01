@@ -242,3 +242,19 @@
   - Added `src/commands/__tests__/reset.test.ts` (4 tests)
   - Tests: channel reset, agents reset, backup creation, reset-all file deletion
   - Tests verify store functions return defaults after file removal
+
+## [2026-03-02 07:39] Self-Evolve Round 26: List commands integration tests
+- **Status:** success
+- **Tests:** 210/210 passing (22 suites, +5 new tests)
+- **Notes:**
+  - Added `src/commands/__tests__/list-commands.test.ts` (5 tests)
+  - Tests: empty roster, agents after add, channel instances, add/delete/add order, updateAgent + list
+
+## [2026-03-02 07:41] Self-Evolve Round 27: Config command group tests
+- **Status:** success
+- **Tests:** 221/221 passing (23 suites, +11 new tests)
+- **Notes:**
+  - Added `src/commands/__tests__/config-commands.test.ts` (11 tests)
+  - Tests: get/set/unset via dot-path on real config schema
+  - Tests: parseValue type handling, nested instance reads, enconvoApp unset, overwrite
+  - Discovered: loadGlobalConfig reconstructs from schema fields — custom keys dropped on reload
