@@ -6,26 +6,48 @@ export interface ParsedResponse {
   filePaths: string[];
 }
 
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+const ALL_FILE_EXTENSIONS = new Set([
+  ...IMAGE_EXTENSIONS,
+  '.txt', '.pdf', '.doc', '.docx', '.csv', '.json', '.xml',
+  '.mp3', '.mp4', '.wav', '.mov', '.zip', '.tar', '.gz',
+]);
 
-function isImagePath(str: string): boolean {
-  if (!str.startsWith('/')) return false;
-  const lower = str.toLowerCase();
-  return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext));
+function hasKnownExtension(filePath: string): boolean {
+  const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+  return ALL_FILE_EXTENSIONS.has(ext);
 }
 
-function extractFilePaths(text: string): string[] {
+// Extract absolute file paths from any string
+function extractAbsolutePaths(text: string): string[] {
   const paths: string[] = [];
-  // Match absolute file paths in the text
-  const regex = /(?:^|\s)(\/[\w./-]+\.(?:png|jpg|jpeg|gif|webp|bmp))(?:\s|$|[.,)}\]])/gim;
+  // Match absolute paths with file extensions
+  const regex = /(\/[\w .~\-/]+\.[\w]+)/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const p = match[1];
-    if (fs.existsSync(p)) {
+    if (hasKnownExtension(p) && fs.existsSync(p)) {
       paths.push(p);
     }
   }
   return paths;
+}
+
+function extractDeliverableFiles(flowParams: string): string[] {
+  try {
+    const params = JSON.parse(flowParams);
+    if (!Array.isArray(params.deliverables)) return [];
+    return params.deliverables
+      .filter((d: any) => d.type === 'file' && d.url && fs.existsSync(d.url))
+      .map((d: any) => d.url as string);
+  } catch {
+    return [];
+  }
+}
+
+// Extract file paths from any flow_step's flowParams
+function extractFlowParamsPaths(flowParams: string): string[] {
+  return extractAbsolutePaths(flowParams);
 }
 
 export function parseResponse(response: EnConvoResponse): ParsedResponse {
@@ -47,19 +69,17 @@ export function parseResponse(response: EnConvoResponse): ParsedResponse {
     for (const item of msg.content) {
       if (item.type === 'text' && item.text) {
         textParts.push(item.text);
-
-        // Check for file paths embedded in the text
-        const paths = extractFilePaths(item.text);
-        filePaths.push(...paths);
+        filePaths.push(...extractAbsolutePaths(item.text));
       }
-    }
-  }
 
-  // Also check if any text chunk is itself just a file path
-  for (const part of textParts) {
-    const trimmed = part.trim();
-    if (isImagePath(trimmed) && fs.existsSync(trimmed) && !filePaths.includes(trimmed)) {
-      filePaths.push(trimmed);
+      if (item.type === 'flow_step' && item.flowParams) {
+        // Deliverable tool has structured file references
+        if (item.flowName === 'Deliverable') {
+          filePaths.push(...extractDeliverableFiles(item.flowParams));
+        }
+        // Also scan any flow_step params for file paths (e.g. file_system--read_file)
+        filePaths.push(...extractFlowParamsPaths(item.flowParams));
+      }
     }
   }
 

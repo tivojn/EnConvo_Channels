@@ -105,11 +105,15 @@ async function sendParsedResponse(ctx: Context, parsed: { text: string; filePath
 
   for (const filePath of parsed.filePaths) {
     try {
-      if (fs.existsSync(filePath)) {
+      if (!fs.existsSync(filePath)) continue;
+      const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+      if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'].includes(ext)) {
         await ctx.replyWithPhoto(new InputFile(filePath));
+      } else {
+        await ctx.replyWithDocument(new InputFile(filePath));
       }
     } catch (err) {
-      console.error(`Failed to send image ${filePath}:`, err);
+      console.error(`Failed to send file ${filePath}:`, err);
     }
   }
 }

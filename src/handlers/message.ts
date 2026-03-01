@@ -35,14 +35,13 @@ export async function handleTextMessage(ctx: Context): Promise<void> {
       }
     }
 
-    // Send images
+    // Send files (images as photos, others as documents)
     for (const filePath of parsed.filePaths) {
       try {
-        if (fs.existsSync(filePath)) {
-          await ctx.replyWithPhoto(new InputFile(filePath));
-        }
+        if (!fs.existsSync(filePath)) continue;
+        await sendFile(ctx, filePath);
       } catch (err) {
-        console.error(`Failed to send image ${filePath}:`, err);
+        console.error(`Failed to send file ${filePath}:`, err);
       }
     }
   } catch (err) {
@@ -56,6 +55,17 @@ export async function handleTextMessage(ctx: Context): Promise<void> {
       console.error('Error handling message:', err);
       await ctx.reply('Something went wrong while processing your message.');
     }
+  }
+}
+
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+
+async function sendFile(ctx: Context, filePath: string): Promise<void> {
+  const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+  if (IMAGE_EXTS.has(ext)) {
+    await ctx.replyWithPhoto(new InputFile(filePath));
+  } else {
+    await ctx.replyWithDocument(new InputFile(filePath));
   }
 }
 

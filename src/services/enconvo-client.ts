@@ -4,6 +4,10 @@ interface EnConvoContentItem {
   type: string;
   text?: string;
   id?: string;
+  // flow_step fields
+  flowName?: string;
+  flowParams?: string;
+  flowRunStatus?: string;
 }
 
 interface EnConvoMessage {
