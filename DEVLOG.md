@@ -11,7 +11,7 @@
 An extensible CLI tool (`enconvo_cli`) for managing **EnConvo AI** channels, agents, and services. Originally a standalone Telegram bot adapter, now refactored into a CLI modeled after OpenClaw's multi-agent architecture.
 
 **Stack:** TypeScript, Commander.js (CLI), Grammy (Telegram), tsx (runtime)
-**Repo:** https://github.com/tivojn/EnConvo_Channels
+**Repo:** https://github.com/tivojn/enconvo_cli
 
 ---
 
