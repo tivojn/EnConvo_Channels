@@ -10,9 +10,16 @@ import { splitMessage } from '../utils/message-splitter';
 import { startTypingIndicator } from '../middleware/typing';
 
 export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: string) {
-  // Pre-load roster IDs for delegation detection
+  // Pre-load roster for delegation detection
   const roster = loadAgentsRoster();
   const rosterIds = roster.members.map(m => m.id);
+  // Map bot handles → agent IDs so we catch @BotUsername mentions too
+  const handleMap: Record<string, string> = {};
+  for (const m of roster.members) {
+    if (m.bindings.telegramBot) {
+      handleMap[m.bindings.telegramBot] = m.id;
+    }
+  }
   const currentAgent = instanceId
     ? roster.members.find(m => m.bindings.instanceName === instanceId)
     : undefined;
@@ -45,7 +52,7 @@ export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: 
       const response = await callEnConvo(text, sessionId, agentPath);
       typing.stop();
 
-      const parsed = parseResponse(response, rosterIds);
+      const parsed = parseResponse(response, rosterIds, handleMap);
 
       if (!parsed.text && parsed.filePaths.length === 0) {
         await ctx.reply('(EnConvo returned an empty response)');

@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { Command } from 'commander';
 import { loadAgentsRoster, AgentMember } from '../../config/agent-store';
 import { generatePrompt } from '../../services/team-prompt';
+import { createWorkspace } from '../../services/workspace';
 import { loadGlobalConfig, getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { ENCONVO_PREFERENCES_DIR, BACKUPS_DIR, TEAM_KB_DIR } from '../../config/paths';
@@ -17,10 +18,14 @@ interface SyncResult {
   prompt?: string;
 }
 
-function syncAgents(targets: AgentMember[], opts: { dryRun?: boolean; json?: boolean }): SyncResult[] {
+function syncAgents(targets: AgentMember[], roster: ReturnType<typeof loadAgentsRoster>, opts: { dryRun?: boolean; json?: boolean; regenWorkspace?: boolean }): SyncResult[] {
   const results: SyncResult[] = [];
 
   for (const agent of targets) {
+    // Regenerate workspace files before prompt generation to keep paths fresh
+    if (opts.regenWorkspace) {
+      createWorkspace(agent, roster);
+    }
     const prompt = generatePrompt(agent);
     const prefFile = path.join(ENCONVO_PREFERENCES_DIR, `${agent.preferenceKey}.json`);
 
@@ -113,6 +118,7 @@ export function registerSync(parent: Command): void {
     .command('sync')
     .description('Sync agent prompts to EnConvo preferences')
     .option('--dry-run', 'Preview prompts without writing')
+    .option('--regen', 'Regenerate workspace files (IDENTITY, SOUL, AGENTS) before syncing')
     .option('--agent <id>', 'Sync a specific agent only')
     .option('--json', 'Output as JSON')
     .option('--watch', 'Watch team KB for changes and auto-sync')
@@ -148,7 +154,7 @@ export function registerSync(parent: Command): void {
       }
 
       // Initial sync
-      const results = syncAgents(targets, opts);
+      const results = syncAgents(targets, roster, { ...opts, regenWorkspace: opts.regen });
 
       if (opts.json && !opts.watch) {
         console.log(JSON.stringify({ action: opts.dryRun ? 'dry-run' : 'sync', results }, null, 2));
@@ -212,7 +218,7 @@ export function registerSync(parent: Command): void {
               ? freshRoster.members.filter((m) => m.id === opts.agent)
               : freshRoster.members;
 
-            const watchResults = syncAgents(freshTargets, { json: opts.json });
+            const watchResults = syncAgents(freshTargets, freshRoster, { json: opts.json });
 
             if (opts.json) {
               console.log(JSON.stringify({ action: 'watch-sync', trigger: filename, results: watchResults }, null, 2));

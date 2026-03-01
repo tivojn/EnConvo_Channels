@@ -58,17 +58,40 @@ function extractFlowParamsPaths(flowParams: string): string[] {
 
 /**
  * Detect @agent mentions in response text against a known roster.
- * Roster is optional — if not provided, returns empty array.
+ * Matches both agent IDs (e.g. @elena) and bot handles (e.g. @Enconvo_Elena_Content_Dept_bot).
+ * handleMap maps lowercase bot handles to agent IDs for resolution.
  */
-export function detectDelegations(text: string, rosterIds?: string[]): DelegationDirective[] {
+export function detectDelegations(
+  text: string,
+  rosterIds?: string[],
+  handleMap?: Record<string, string>,
+): DelegationDirective[] {
   if (!rosterIds || rosterIds.length === 0) return [];
 
   const delegations: DelegationDirective[] = [];
-  // Match @agentId patterns (case-insensitive)
-  const pattern = new RegExp(`(?:@|→\\s*)(?:@)?(${rosterIds.join('|')})\\b`, 'gi');
+
+  // Build combined patterns: agent IDs + bot handles
+  const allPatterns = [...rosterIds];
+  const handleToId: Record<string, string> = {};
+  if (handleMap) {
+    for (const [handle, agentId] of Object.entries(handleMap)) {
+      // Strip leading @ from handle for matching
+      const clean = handle.replace(/^@/, '');
+      allPatterns.push(clean);
+      handleToId[clean.toLowerCase()] = agentId;
+    }
+  }
+
+  const pattern = new RegExp(`(?:@|→\\s*)(?:@)?(${allPatterns.join('|')})\\b`, 'gi');
   let match;
   while ((match = pattern.exec(text)) !== null) {
-    const targetId = match[1].toLowerCase();
+    const matched = match[1].toLowerCase();
+    // Resolve to agent ID (either direct match or via handle map)
+    const targetId = handleToId[matched] ?? matched;
+
+    // Skip self-mentions or unknown IDs
+    if (!rosterIds.includes(targetId)) continue;
+
     // Use remaining text after the mention as delegation context
     const afterMention = text.slice(match.index + match[0].length).trim();
     // Take the sentence or up to 200 chars as the delegation message
@@ -81,7 +104,11 @@ export function detectDelegations(text: string, rosterIds?: string[]): Delegatio
   return delegations;
 }
 
-export function parseResponse(response: EnConvoResponse, rosterIds?: string[]): ParsedResponse {
+export function parseResponse(
+  response: EnConvoResponse,
+  rosterIds?: string[],
+  handleMap?: Record<string, string>,
+): ParsedResponse {
   const textParts: string[] = [];
   const filePaths: string[] = [];
 
@@ -115,7 +142,7 @@ export function parseResponse(response: EnConvoResponse, rosterIds?: string[]): 
   }
 
   const fullText = textParts.join('\n\n');
-  const delegations = detectDelegations(fullText, rosterIds);
+  const delegations = detectDelegations(fullText, rosterIds, handleMap);
 
   return {
     text: fullText,

@@ -44,10 +44,25 @@ function derivePreferenceKey(agentPath: string): string {
   return agentPath.replace('/', '|');
 }
 
-function deriveWorkspacePath(id: string, _isLead: boolean): string {
+function deriveWorkspacePath(id: string, isLead: boolean): string {
   // Always use workspace-{id}/ to avoid path collisions between leads
-  const dirName = `workspace-${id}`;
-  return path.join(ENCONVO_CLI_DIR, dirName);
+  const newPath = path.join(ENCONVO_CLI_DIR, `workspace-${id}`);
+
+  // Auto-migrate: old leads used plain "workspace/" — rename if new path doesn't exist yet
+  if (isLead && !fs.existsSync(newPath)) {
+    const oldPath = path.join(ENCONVO_CLI_DIR, 'workspace');
+    if (fs.existsSync(oldPath)) {
+      try {
+        fs.renameSync(oldPath, newPath);
+        console.log(`[agent-store] Migrated workspace/ → workspace-${id}/`);
+      } catch {
+        // Fall back to old path if rename fails (e.g. permissions)
+        return oldPath;
+      }
+    }
+  }
+
+  return newPath;
 }
 
 export function loadAgentsRoster(): AgentsRoster {
