@@ -298,3 +298,11 @@
   - Supports `--json` output
   - CLI now has 12 channels subcommands
   - Smoke tested: Connected as @Encovo_Mavis_001_bot (528ms)
+
+## [2026-03-02 07:53] Self-Evolve Round 32: Agents check data layer tests
+- **Status:** success
+- **Tests:** 247/247 passing (26 suites, +8 new tests)
+- **Notes:**
+  - Added `src/commands/__tests__/agents-check.test.ts` (8 tests)
+  - Tests: workspace file detection (complete/missing), team KB dir, preference prompt check
+  - Tests: version comparison (changed/unchanged), channel instance binding check
