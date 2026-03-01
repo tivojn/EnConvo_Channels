@@ -187,3 +187,14 @@
   - Tests: setChannelGroup, getChannelGroup, removeChannelGroup, listChannelGroups
   - Tests: resolveChatId (--chat, --group, missing, unknown group)
   - Tests: v1→v2 migration, corrupted JSON graceful fallback
+
+## [2026-03-02 07:30] Self-Evolve Round 20: export/import commands
+- **Status:** success
+- **Tests:** 189/189 passing (17 suites)
+- **Notes:**
+  - Added `enconvo export` — export config + agent roster to JSON file
+  - Added `enconvo import` — import from JSON file with backup, merge, and dry-run
+  - Export supports `--strip-tokens` for safe sharing (redacts bot tokens)
+  - Import supports `--merge` (add without overwriting) and `--dry-run` (preview)
+  - Auto-backup before import to `~/.enconvo_cli/backups/`
+  - CLI now has 13 top-level commands + 4 command groups

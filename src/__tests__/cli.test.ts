@@ -11,6 +11,7 @@ import { registerSessionsCommand } from '../commands/sessions';
 import { registerLogsCommand } from '../commands/logs';
 import { registerInfoCommand } from '../commands/info';
 import { registerConfigureCommand } from '../commands/configure';
+import { registerExportCommand, registerImportCommand } from '../commands/export-import';
 
 function getCommandNames(program: Command): string[] {
   return program.commands.map((c) => c.name());
@@ -40,6 +41,8 @@ describe('CLI command registration', () => {
     registerLogsCommand(program);
     registerInfoCommand(program);
     registerConfigureCommand(program);
+    registerExportCommand(program);
+    registerImportCommand(program);
 
     const names = getCommandNames(program);
     expect(names).toContain('channels');
@@ -53,6 +56,8 @@ describe('CLI command registration', () => {
     expect(names).toContain('logs');
     expect(names).toContain('info');
     expect(names).toContain('configure');
+    expect(names).toContain('export');
+    expect(names).toContain('import');
   });
 
   it('registers all channels subcommands', () => {
