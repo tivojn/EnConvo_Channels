@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { Bot } from 'grammy';
 import * as crypto from 'crypto';
 import { loadAgentsRoster, AgentMember } from '../../config/agent-store';
-import { getChannelInstance, loadGlobalConfig } from '../../config/store';
+import { getChannelInstance, loadGlobalConfig, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
 import { TEAM_KB_DIR } from '../../config/paths';
@@ -14,12 +14,21 @@ export function registerRefresh(parent: Command): void {
   parent
     .command('refresh')
     .description('Notify agents to re-read their workspace files and team KB')
-    .requiredOption('--chat <id>', 'Telegram chat ID to deliver responses to')
+    .option('--chat <id>', 'Telegram chat ID to deliver responses to')
+    .option('--group <name>', 'Named group (resolves to chat ID)')
     .option('--agent <id>', 'Refresh a specific agent only')
     .option('--reset', 'Generate a new session ID (fresh conversation)')
     .option('--silent', 'Refresh without posting to Telegram')
     .option('--json', 'Output as JSON')
     .action(async (opts) => {
+      let chatId: string;
+      try {
+        chatId = resolveChatId(opts, 'telegram');
+      } catch (err: unknown) {
+        outputError(opts, err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+
       const roster = loadAgentsRoster();
 
       if (roster.members.length === 0) {
@@ -56,8 +65,8 @@ export function registerRefresh(parent: Command): void {
 
         // Build session ID — use reset flag for fresh session
         const sessionId = opts.reset
-          ? `telegram-${opts.chat}-${instanceName}-${crypto.randomUUID().slice(0, 8)}`
-          : `telegram-${opts.chat}-${instanceName}`;
+          ? `telegram-${chatId}-${instanceName}-${crypto.randomUUID().slice(0, 8)}`
+          : `telegram-${chatId}-${instanceName}`;
 
         try {
           if (!opts.json) {
@@ -79,9 +88,9 @@ export function registerRefresh(parent: Command): void {
             const label = `${agent.emoji} ${agent.name}`;
 
             try {
-              await bot.api.sendMessage(opts.chat, `${label}:\n${responseText}`, { parse_mode: 'Markdown' });
+              await bot.api.sendMessage(chatId, `${label}:\n${responseText}`, { parse_mode: 'Markdown' });
             } catch {
-              await bot.api.sendMessage(opts.chat, `${label}:\n${responseText}`);
+              await bot.api.sendMessage(chatId, `${label}:\n${responseText}`);
             }
           }
 
@@ -99,7 +108,7 @@ export function registerRefresh(parent: Command): void {
       }
 
       if (opts.json) {
-        console.log(JSON.stringify({ action: 'refresh', chat: opts.chat, reset: !!opts.reset, results }, null, 2));
+        console.log(JSON.stringify({ action: 'refresh', chat: chatId, reset: !!opts.reset, results }, null, 2));
       } else {
         const refreshed = results.filter((r) => r.status === 'refreshed').length;
         console.log(`\nRefreshed ${refreshed}/${targets.length} agents.`);

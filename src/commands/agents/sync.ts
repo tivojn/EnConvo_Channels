@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import { Command } from 'commander';
 import { loadAgentsRoster, AgentMember } from '../../config/agent-store';
 import { generatePrompt } from '../../services/team-prompt';
-import { loadGlobalConfig, getChannelInstance } from '../../config/store';
+import { loadGlobalConfig, getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { ENCONVO_PREFERENCES_DIR, BACKUPS_DIR, TEAM_KB_DIR } from '../../config/paths';
 
@@ -117,6 +117,7 @@ export function registerSync(parent: Command): void {
     .option('--json', 'Output as JSON')
     .option('--watch', 'Watch team KB for changes and auto-sync')
     .option('--chat <id>', 'Telegram chat ID for auto-refresh in watch mode')
+    .option('--group <name>', 'Named group (resolves to chat ID for watch mode)')
     .action(async (opts) => {
       const roster = loadAgentsRoster();
 
@@ -162,6 +163,17 @@ export function registerSync(parent: Command): void {
           process.exit(1);
         }
 
+        // Resolve chat ID from --chat or --group for watch mode refresh
+        let watchChatId: string | undefined;
+        if (opts.chat || opts.group) {
+          try {
+            watchChatId = resolveChatId(opts, 'telegram');
+          } catch (err: unknown) {
+            console.error(err instanceof Error ? err.message : String(err));
+            process.exit(1);
+          }
+        }
+
         if (!opts.json) {
           const synced = results.filter((r) => r.status === 'synced').length;
           console.log(`\nSynced ${synced}/${targets.length} agents.`);
@@ -173,10 +185,10 @@ export function registerSync(parent: Command): void {
         }
 
         if (!opts.json) {
-          const mode = opts.chat ? 'sync + silent refresh' : 'sync only';
+          const mode = watchChatId ? 'sync + silent refresh' : 'sync only';
           console.log(`\nWatching ${TEAM_KB_DIR} for changes (${mode})... (Ctrl+C to stop)`);
-          if (!opts.chat) {
-            console.log('  Tip: add --chat <id> to auto-refresh agents on changes');
+          if (!watchChatId) {
+            console.log('  Tip: add --chat <id> or --group <name> to auto-refresh agents on changes');
           }
         }
 
@@ -210,11 +222,11 @@ export function registerSync(parent: Command): void {
             }
 
             // Auto-refresh agents if chat ID provided
-            if (opts.chat) {
+            if (watchChatId) {
               if (!opts.json) {
                 console.log(`  Refreshing agents (silent, fresh session)...`);
               }
-              await silentRefreshAgents(freshTargets, opts.chat, opts.json);
+              await silentRefreshAgents(freshTargets, watchChatId, opts.json);
             }
           }, 300);
         });

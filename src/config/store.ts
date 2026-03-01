@@ -21,8 +21,14 @@ export interface InstanceConfig {
   };
 }
 
+export interface GroupConfig {
+  chatId: string;
+  name: string;   // human-readable label
+}
+
 export interface ChannelWithInstances {
   instances: Record<string, InstanceConfig>;
+  groups?: Record<string, GroupConfig>;
 }
 
 export interface EnConvoAppInfo {
@@ -172,6 +178,58 @@ export function removeChannelInstance(channelName: string, instanceName: string,
 export function listChannelInstances(channelName: string): Record<string, InstanceConfig> {
   const config = loadGlobalConfig();
   return config.channels[channelName]?.instances ?? {};
+}
+
+// --- Group-level CRUD ---
+
+export function getChannelGroup(channelName: string, groupName: string): GroupConfig | undefined {
+  const config = loadGlobalConfig();
+  return config.channels[channelName]?.groups?.[groupName];
+}
+
+export function setChannelGroup(channelName: string, groupName: string, group: GroupConfig): void {
+  const config = loadGlobalConfig();
+  if (!config.channels[channelName]) {
+    config.channels[channelName] = { instances: {} };
+  }
+  if (!config.channels[channelName].groups) {
+    config.channels[channelName].groups = {};
+  }
+  config.channels[channelName].groups![groupName] = group;
+  saveGlobalConfig(config);
+}
+
+export function removeChannelGroup(channelName: string, groupName: string): boolean {
+  const config = loadGlobalConfig();
+  const channel = config.channels[channelName];
+  if (!channel?.groups?.[groupName]) return false;
+  delete channel.groups[groupName];
+  if (Object.keys(channel.groups).length === 0) {
+    delete channel.groups;
+  }
+  saveGlobalConfig(config);
+  return true;
+}
+
+export function listChannelGroups(channelName: string): Record<string, GroupConfig> {
+  const config = loadGlobalConfig();
+  return config.channels[channelName]?.groups ?? {};
+}
+
+/**
+ * Resolve a chat ID from either --chat or --group option.
+ * Throws if neither is provided or if the group is not found.
+ */
+export function resolveChatId(opts: { chat?: string; group?: string }, channelName: string): string {
+  if (opts.chat) return opts.chat;
+  if (opts.group) {
+    const group = getChannelGroup(channelName, opts.group);
+    if (!group) {
+      throw new Error(`Group "${opts.group}" not found for channel "${channelName}". Run: enconvo channels groups`);
+    }
+    return group.chatId;
+  }
+  throw new Error('Either --chat <id> or --group <name> is required');
 }
 
 /**

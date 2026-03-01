@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { Bot, InputFile } from 'grammy';
 import * as fs from 'fs';
-import { getChannelInstance } from '../../config/store';
+import { getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
 import { loadGlobalConfig } from '../../config/store';
@@ -14,7 +14,8 @@ export function registerSend(parent: Command): void {
     .description('Send a message through a channel instance and get the response')
     .requiredOption('--channel <name>', 'Channel type (e.g. telegram)')
     .requiredOption('--name <name>', 'Instance name (e.g. vivienne)')
-    .requiredOption('--chat <id>', 'Chat ID to send response to')
+    .option('--chat <id>', 'Chat ID to send response to')
+    .option('--group <name>', 'Named group (resolves to chat ID)')
     .requiredOption('--message <text>', 'Message to send')
     .option('--json', 'Output as JSON')
     .action(async (opts) => {
@@ -29,8 +30,16 @@ export function registerSend(parent: Command): void {
         process.exit(1);
       }
 
+      let chatId: string;
+      try {
+        chatId = resolveChatId(opts, opts.channel);
+      } catch (err: unknown) {
+        outputError(opts, err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+
       const config = loadGlobalConfig();
-      const sessionId = `telegram-${opts.chat}-${opts.name}`;
+      const sessionId = `telegram-${chatId}-${opts.name}`;
 
       try {
         // Call EnConvo
@@ -57,9 +66,9 @@ export function registerSend(parent: Command): void {
 
         if (parsed.text) {
           try {
-            await bot.api.sendMessage(opts.chat, parsed.text, { parse_mode: 'Markdown' });
+            await bot.api.sendMessage(chatId, parsed.text, { parse_mode: 'Markdown' });
           } catch {
-            await bot.api.sendMessage(opts.chat, parsed.text);
+            await bot.api.sendMessage(chatId, parsed.text);
           }
         }
 
@@ -67,16 +76,16 @@ export function registerSend(parent: Command): void {
           if (!fs.existsSync(filePath)) continue;
           const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
           if (IMAGE_EXTS.has(ext)) {
-            await bot.api.sendPhoto(opts.chat, new InputFile(filePath));
+            await bot.api.sendPhoto(chatId, new InputFile(filePath));
           } else {
-            await bot.api.sendDocument(opts.chat, new InputFile(filePath));
+            await bot.api.sendDocument(chatId, new InputFile(filePath));
           }
         }
 
         if (opts.json) {
           console.log(JSON.stringify({
             instance: opts.name,
-            chat: opts.chat,
+            chat: chatId,
             message: opts.message,
             response: parsed.text,
             files: parsed.filePaths,
@@ -86,7 +95,7 @@ export function registerSend(parent: Command): void {
           if (parsed.filePaths.length > 0) {
             console.log(`\nFiles sent: ${parsed.filePaths.join(', ')}`);
           }
-          console.log(`\n→ Delivered to chat ${opts.chat} via @${opts.name}`);
+          console.log(`\n→ Delivered to chat ${chatId} via @${opts.name}`);
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
