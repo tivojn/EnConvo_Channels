@@ -86,3 +86,12 @@
     - Phase 6: "Keep Going" autonomous mode with round structure
     - Phase 7: Parity Analysis for CLI mirroring
     - Learned Patterns section (git push gotchas, vitest, code dedup, CLI command patterns)
+
+## [2026-03-02 07:00] Self-Evolve Round 10: logs command + CLI integration tests + docs
+- **Status:** success
+- **Tests:** 96/96 passing (11 suites, +5 new tests)
+- **Notes:**
+  - Added `enconvo logs` command (tail adapter log files, --list, --errors, --lines)
+  - Added CLI integration test suite (verifies all command groups register correctly)
+  - Updated OpenClaw parity doc: 25 commands marked as done
+  - Updated DEVLOG.md with all self-evolve rounds (4-10) documentation

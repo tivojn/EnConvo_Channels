@@ -1236,3 +1236,102 @@ npm run uninstall-service # Stop + remove
 ### Long-term Goal
 
 `enconvo_cli` is evolving toward **OpenClaw CLI parity** — same command structure, same parameters. This requires reverse-engineering OpenClaw's CLI interface and mapping it to EnConvo's API. Phase 12 lays groundwork (agent routing, delegation, shared sessions) that mirrors OpenClaw's agent coordination patterns.
+
+---
+
+## Self-Evolve Rounds (2026-03-02, Autonomous Mode)
+
+After Phase 12, the codebase entered autonomous self-evolution. Each round identifies the highest-impact improvement and ships it with tests.
+
+### Round 4: Message-splitter refactor + CI + OpenClaw research
+- Extracted shared `src/utils/message-splitter.ts` from duplicated Telegram/Discord code
+- Channel-specific files now delegate to shared utility with proper `MAX_LENGTH`
+- Created GitHub Actions CI workflow (Node 20+22, typecheck + test)
+- Completed OpenClaw CLI research: 25 command domains, 142+ subcommands mapped
+- **Tests:** 50/50 (6 suites, +12 new)
+- **Commit:** a6c6367
+
+### Round 5: config/status/doctor commands + dot-path utility
+- Added `enconvo config get/set/unset/path` command group (OpenClaw parity)
+- Added `enconvo status` — API probe, team info, channel summary
+- Added `enconvo doctor` — config validation, workspace checks, connectivity
+- Created `src/utils/dot-path.ts` (getByPath, setByPath, unsetByPath, parseValue)
+- **Tests:** 72/72 (7 suites, +22 new)
+- **Commit:** 386225b
+
+### Round 6: agents bind/unbind + message send
+- Added `enconvo agents bind/unbind` for multi-channel bindings
+- Extended `AgentBindings` with `channelBindings[]` array
+- Added `enconvo message send` — supports `--agent` flag (routes via bindings) and `--deliver`
+- **Tests:** 72/72 (7 suites)
+- **Commit:** 1057ff1
+
+### Round 7: ESLint + code cleanup
+- Added ESLint with TypeScript support (flat config `eslint.config.mjs`)
+- Fixed 7 unused import/variable warnings across codebase
+- Added `npm run lint` and `npm run lint:fix` scripts
+- **Tests:** 72/72 (7 suites)
+- **Commit:** 5aeb5c2
+
+### Round 8: health, sessions commands + store tests
+- Added `enconvo health` — API connectivity check with latency measurement
+- Added `enconvo sessions` — list all configured channel sessions
+- Added config store test suite (v2 schema, channel instances, groups)
+- **Tests:** 76/76 (8 suites, +4 new)
+- **Commit:** 56fa591
+
+### Round 9: Workspace + session-manager tests
+- Added `workspace.test.ts` (8 tests: dir creation, identity/soul/agents generation, Chinese name, portraits)
+- Added `session-manager.test.ts` (7 tests: sessionId, reset, instanceId isolation)
+- **Tests:** 91/91 (10 suites, +15 new)
+- **Commit:** 4d9aed7
+
+### Round 10: logs command + CLI integration tests
+- Added `enconvo logs` — tail adapter log files with `--list`, `--errors`, `--lines`, `--channel`, `--name`
+- Added CLI integration test suite (5 tests: top-level commands, channels/agents/config/message subcommands)
+- Updated OpenClaw parity doc: 25 commands now marked as done
+- **Tests:** 96/96 (11 suites, +5 new)
+
+### CLI Command Surface (after Round 10)
+
+```
+enconvo
+├── channels (add, remove, list, login, logout, status, send, groups, enable, disable, set)
+├── agents (list, add, delete, set-identity, sync, bindings, bind, unbind)
+├── config (get, set, unset, path)
+├── message (send)
+├── status
+├── doctor
+├── health
+├── sessions
+└── logs
+```
+
+### Test Coverage Growth
+
+| Milestone | Tests | Suites |
+|---|---|---|
+| Phase 12 (initial) | 38 | 5 |
+| Round 4 | 50 | 6 |
+| Round 5 | 72 | 7 |
+| Round 8 | 76 | 8 |
+| Round 9 | 91 | 10 |
+| Round 10 | 96 | 11 |
+
+### Key Files Added During Self-Evolve
+
+| File | Purpose |
+|---|---|
+| `src/utils/message-splitter.ts` | Shared message splitting (dedup from Telegram/Discord) |
+| `src/utils/dot-path.ts` | Navigate nested config by dot-separated paths |
+| `src/commands/config/` | Config get/set/unset/path command group |
+| `src/commands/message/` | Message send command group |
+| `src/commands/status.ts` | Unified status command |
+| `src/commands/doctor.ts` | Config validation + workspace checks |
+| `src/commands/health.ts` | API connectivity probe |
+| `src/commands/sessions.ts` | List all channel sessions |
+| `src/commands/logs.ts` | Tail adapter log files |
+| `src/commands/agents/bind.ts` | Multi-channel agent binding |
+| `src/commands/agents/unbind.ts` | Remove channel binding |
+| `eslint.config.mjs` | ESLint flat config with TypeScript |
+| `.self-evolve/openclaw-parity.md` | Full OpenClaw CLI gap analysis |
