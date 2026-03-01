@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-01 (Phase 10.3)
+**Last updated:** 2026-03-01 (Phase 10.4)
 
 ---
 
@@ -214,7 +214,7 @@ Users configure these in EnConvo's GUI. `enconvo_cli` reads them to understand w
 
 ---
 
-## Current File Structure (Phase 10.3)
+## Current File Structure (Phase 10.4)
 
 ```
 src/
@@ -270,7 +270,7 @@ src/
     ├── response-parser.ts          # Parses EnConvo response formats
     ├── session-manager.ts          # Session ID + agent selection per chat
     ├── workspace.ts                # Creates workspace dirs (IDENTITY.md, SOUL.md, AGENTS.md)
-    └── team-prompt.ts              # Generates lean pointer prompt (agents read their own workspace files)
+    └── team-prompt.ts              # Generates lean pointer prompt + injects team KB rules into system prompt
 
 config.json                         # Legacy agent definitions + auth
 com.enconvo.telegram-adapter.plist  # macOS LaunchAgent
@@ -391,11 +391,13 @@ scripts/
 enconvo agents sync [--dry-run] [--agent <id>]
 
 1. Generate lean pointer prompt (name, role, workspace path, team KB path, read instructions)
-2. Append Jinja2 footer: {{ now }}, {{responseLanguage}}
-3. Backup existing preference file to ~/.enconvo_cli/backups/
-4. Write prompt field to ~/.config/enconvo/installed_preferences/{key}.json
+2. Read ~/.enconvo_cli/kb/*.md → inject as "MANDATORY TEAM RULES" in the prompt
+3. Append Jinja2 footer: {{ now }}, {{responseLanguage}}
+4. Backup existing preference file to ~/.enconvo_cli/backups/
+5. Write prompt field to ~/.config/enconvo/installed_preferences/{key}.json
 
-Agent reads IDENTITY.md, SOUL.md, AGENTS.md, and team KB on conversation start.
+Agent reads IDENTITY.md, SOUL.md, AGENTS.md via read_file on conversation start.
+Team KB rules are already in the system prompt — no read_file needed for enforcement.
 ```
 
 ---
@@ -675,6 +677,47 @@ All checks passed: 23/23
 - `ENCONVO_APP_PLIST` — `/Applications/EnConvo.app/Contents/Info.plist`
 
 Files: 4 changed, 452 insertions, 118 deletions.
+
+### Phase 10.4 — Team KB Injection into System Prompt (commit `7abbe89`)
+
+**Problem discovered:** Agents were told to `read_file` the team KB (`~/.enconvo_cli/kb/`) at conversation start, but they acknowledged the files without actually enforcing the rules. A "no emerald color in selfies" rule was added to `team-standards.md` and agents were refreshed, but Vivienne and Elena still offered to generate emerald selfies. Twice.
+
+**Root cause:** `read_file` is unreliable for rule enforcement. Agents treat file contents as reference material, not binding instructions. Identity/personality files (IDENTITY.md, SOUL.md) work fine as `read_file` targets because they're descriptive, not prescriptive. But hard rules need to be in the system prompt to be enforced.
+
+**Fix:** `team-prompt.ts` now reads all `*.md` files from `~/.enconvo_cli/kb/` and injects their contents directly into the system prompt under a `MANDATORY TEAM RULES (enforced — no exceptions)` header. The lean prompt still tells agents to read their workspace files via `read_file` (for identity/personality), but team KB rules are baked in.
+
+**Updated prompt structure:**
+```
+You are {name}, the {role} of the EnConvo AI Team.
+...
+[workspace pointers + read_file instructions]
+
+---
+MANDATORY TEAM RULES (enforced — no exceptions):
+
+# Team Standards
+## General Rules
+- Always match the user's language
+...
+## Image Generation Rules
+- No emerald color — ...
+
+# Current time is {{ now }}.
+# Response Language: {{responseLanguage}}
+```
+
+**Workflow for team rule changes:**
+1. Edit `~/.enconvo_cli/kb/team-standards.md` (or add new `.md` files)
+2. `enconvo agents sync` — regenerates all prompts with embedded KB rules
+3. `enconvo agents refresh --chat <id> --reset` — fresh sessions pick up new prompt
+
+**Key insight:** Two-tier prompt strategy works best:
+- **Workspace files** (IDENTITY.md, SOUL.md, AGENTS.md) → read via `read_file` at conversation start. Descriptive content — identity, personality, team roster. Fine if an agent reads these lazily.
+- **Team KB** (`~/.enconvo_cli/kb/*.md`) → injected into system prompt. Prescriptive content — rules, bans, policies. Must be enforced, no exceptions.
+
+**Test result:** After injection, all 3 agents (Timothy, Vivienne, Elena) correctly refused the emerald selfie request. Elena even self-corrected: "I just broke it earlier — my bad. That emerald selfie shouldn't have happened. Won't repeat."
+
+Files: 1 changed, 34 insertions, 1 deletion.
 
 ---
 
