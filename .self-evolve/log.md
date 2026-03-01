@@ -132,3 +132,14 @@
   - Fixed 3 `as any` type casts: doctor.ts and discord handlers now use proper types (TextChannel)
   - Added media-dir test suite (6 tests)
   - Enhanced doctor with duplicate agent detection across instances
+
+## [2026-03-02 07:17] Self-Evolve Round 15: Agent-store CRUD integration tests
+- **Status:** success
+- **Tests:** 148/148 passing (15 suites, +17 new tests)
+- **Notes:**
+  - Added `src/config/__tests__/agent-store-crud.test.ts` — full CRUD integration tests
+  - Uses `vi.mock('../paths')` with dynamic getters to redirect FS ops to temp dirs
+  - Tests: loadAgentsRoster default, addAgent derived fields, persistence, duplicate rejection
+  - Tests: getAgent, removeAgent, bindAgent (channelBindings, duplicate replace, legacy sync)
+  - Tests: unbindAgent (specific removal, non-existent binding), updateAgent partial fields
+  - Tests: saveAgentsRoster strips derived fields from disk JSON
