@@ -32,9 +32,6 @@ export class DiscordAdapter implements ChannelAdapter {
     const agentPath = config.agent as string | undefined;
     const allowedUserIds = config.allowedUserIds as (number | string)[] | undefined;
 
-    // Guard: ensure transitive telegram config import doesn't crash
-    if (!process.env.BOT_TOKEN) process.env.BOT_TOKEN = '_discord_adapter_';
-
     const { createDiscordBot } = await import('./bot');
     const { client, loginPromise } = createDiscordBot(token, agentPath, allowedUserIds, this.instanceName);
     this.client = client;

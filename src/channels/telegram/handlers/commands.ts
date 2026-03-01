@@ -1,6 +1,6 @@
 import { Bot, Context } from 'grammy';
 import { resetSession, getSessionId, getAgent, setAgent } from '../../../services/session-manager';
-import { config } from '../config';
+import { loadGlobalConfig } from '../../../config/store';
 
 export function registerCommands(bot: Bot, pinnedAgentPath?: string, instanceId?: string): void {
   bot.command('start', async (ctx: Context) => {
@@ -87,7 +87,8 @@ export function registerCommands(bot: Bot, pinnedAgentPath?: string, instanceId?
 
     // No args: list available agents
     if (args.length === 0) {
-      const lines = config.enconvo.agents.map(a => {
+      const globalConfig = loadGlobalConfig();
+      const lines = globalConfig.enconvo.agents.map(a => {
         const marker = a.id === current.id ? ' (active)' : '';
         return `  ${a.id} — ${a.name}${marker}\n    ${a.description}`;
       });
@@ -102,7 +103,8 @@ export function registerCommands(bot: Bot, pinnedAgentPath?: string, instanceId?
     // Switch agent
     const agent = setAgent(chatId, args[0]);
     if (!agent) {
-      const ids = config.enconvo.agents.map(a => a.id).join(', ');
+      const globalConfig = loadGlobalConfig();
+      const ids = globalConfig.enconvo.agents.map(a => a.id).join(', ');
       await ctx.reply(`Unknown agent "${args[0]}". Available: ${ids}`);
       return;
     }
@@ -127,11 +129,12 @@ export function registerCommands(bot: Bot, pinnedAgentPath?: string, instanceId?
       : getAgent(chatId).name;
 
     try {
-      const res = await fetch(`${config.enconvo.url}/health`, { signal: AbortSignal.timeout(5000) });
+      const globalConfig = loadGlobalConfig();
+      const res = await fetch(`${globalConfig.enconvo.url}/health`, { signal: AbortSignal.timeout(5000) });
       if (res.ok) {
         await ctx.reply(
           `Status: Connected\n` +
-          `EnConvo: ${config.enconvo.url}\n` +
+          `EnConvo: ${globalConfig.enconvo.url}\n` +
           `Agent: ${agentDisplay}\n` +
           `Session: ${sessionId}`
         );

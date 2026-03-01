@@ -26,7 +26,11 @@ export function resetSession(chatId: number, instanceId?: string): string {
 export function getAgent(chatId: number): AgentConfig {
   const config = loadGlobalConfig();
   const agentId = agentOverrides.get(chatId) ?? config.enconvo.defaultAgent;
-  return config.enconvo.agents.find(a => a.id === agentId) ?? config.enconvo.agents[0];
+  const agent = config.enconvo.agents.find(a => a.id === agentId);
+  if (agent) return agent;
+  const fallback = config.enconvo.agents[0];
+  if (fallback) return fallback;
+  throw new Error('No agents configured in global config');
 }
 
 export function setAgent(chatId: number, agentId: string): AgentConfig | null {
