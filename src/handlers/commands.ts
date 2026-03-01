@@ -29,7 +29,7 @@ export function registerCommands(bot: Bot): void {
     );
   });
 
-  bot.command('agent', async (ctx: Context) => {
+  bot.command(['agent', 'agents'], async (ctx: Context) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 

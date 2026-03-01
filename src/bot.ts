@@ -14,6 +14,17 @@ export function createBot(): Bot {
   // Commands
   registerCommands(bot);
 
+  // Block unrecognized commands from being forwarded to EnConvo
+  bot.on('message:text').filter(
+    (ctx) => /^\/\w+/.test(ctx.message.text),
+    async (ctx) => {
+      await ctx.reply(
+        `Unknown command: ${ctx.message.text.split(/\s+/)[0]}\n` +
+        'Type /help to see available commands.'
+      );
+    },
+  );
+
   // Media handlers
   bot.on('message:photo', handlePhoto);
   bot.on('message:document', handleDocument);
