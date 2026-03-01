@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-01 (Phase 10.7)
+**Last updated:** 2026-03-01 (Phase 11)
 
 ---
 
@@ -10,7 +10,7 @@
 
 An extensible CLI tool (`enconvo_cli`) for managing **EnConvo AI** channels, agents, and services. Originally a standalone Telegram bot adapter, now refactored into a CLI modeled after OpenClaw's multi-agent architecture.
 
-**Stack:** TypeScript, Commander.js (CLI), Grammy (Telegram), tsx (runtime)
+**Stack:** TypeScript, Commander.js (CLI), Grammy (Telegram), discord.js (Discord), tsx (runtime)
 **Repo:** https://github.com/tivojn/enconvo_cli
 
 ---
@@ -24,8 +24,9 @@ EnConvo is a local macOS AI platform with many agents (it calls them "commands",
 ```
 EnConvo (agent factory, GUI)
   └── enconvo_cli (maps agents to channels, composes teams)
-        ├── Telegram bots (one bot per agent)
-        ├── Future: Discord, Slack, etc.
+        ├── Telegram bots (one bot per agent, Grammy)
+        ├── Discord bots (one bot per agent, discord.js)
+        ├── Future: Slack, etc.
         └── Agent groups (team compositions)
 ```
 
@@ -822,6 +823,51 @@ Vivienne responded cleanly after both fixes. Elena and Timothy needed the prompt
 
 Files: 7 changed (6 in repo + 1 KB file outside repo), 181 insertions, 23 deletions.
 
+### Phase 11 — Discord Channel Adapter (commit `2bdeeba`)
+
+**Problem:** enconvo_cli only supported Telegram. Discord was the most-requested second channel. The `ChannelAdapter` interface was designed for multi-channel from Phase 8, but no second implementation existed to prove the abstraction.
+
+**Approach:** Carbon copy of the Telegram adapter — same file structure, same handler patterns, same config schema. discord.js v14 replaces Grammy. Key differences: Discord uses string IDs (snowflakes) instead of numeric, 2000 char message limit (vs 4096), `!command` prefix (vs `/command`), mention detection via `message.mentions.has()`, typing indicator resets after 10s (vs 5s), and files sent via `AttachmentBuilder`.
+
+**New files (9) — mirror of `src/channels/telegram/`:**
+
+| File | Purpose |
+|---|---|
+| `src/channels/discord/adapter.ts` | `ChannelAdapter` impl — start/stop/validate/status/resolve |
+| `src/channels/discord/bot.ts` | `createDiscordBot()` factory — Client with intents, event routing, auth |
+| `src/channels/discord/handlers/message.ts` | Text handler — strips @mention, calls EnConvo, splits at 2000 chars |
+| `src/channels/discord/handlers/commands.ts` | `!reset`, `!status`, `!help` + Discord session management |
+| `src/channels/discord/handlers/media.ts` | Attachment handler — downloads to temp, passes to EnConvo |
+| `src/channels/discord/middleware/mention-gate.ts` | `shouldRespond()` — DM/mention/reply/command gating |
+| `src/channels/discord/middleware/typing.ts` | Typing indicator — `sendTyping()` every 8s |
+| `src/channels/discord/utils/message-splitter.ts` | Split at 2000 chars (Discord limit) |
+| `src/channels/discord/utils/file-sender.ts` | `AttachmentBuilder`-based file sending |
+
+**Modified files (2):**
+- `src/channels/registry.ts` — registered `DiscordAdapter`, added `case 'discord'` to `createAdapterInstance()`
+- `src/config/store.ts` — `InstanceConfig.allowedUserIds` widened from `number[]` to `(number | string)[]` for Discord snowflake IDs
+
+**Design decisions:**
+
+1. **Session management is Discord-local** — Discord session IDs built as `discord-{channelId}-{instanceId}` with an in-module override map in `handlers/commands.ts`. Telegram's `session-manager.ts` uses `number`-typed chat IDs; rather than generalizing it, Discord manages its own sessions. Same pattern, no coupling.
+
+2. **Explicit `callEnConvo()` options** — Discord handlers pass `{ url, timeoutMs }` from `loadGlobalConfig()` to `callEnConvo()` to avoid depending on Telegram's config defaults at runtime. A `process.env.BOT_TOKEN` guard in `adapter.ts` prevents the transitive telegram config import from crashing.
+
+3. **Mention gate is async** — Unlike Telegram's sync middleware, Discord's `shouldRespond()` is async because checking reply-to-bot requires fetching the referenced message via `message.channel.messages.fetch()`.
+
+4. **No new CLI commands** — All existing `channels` subcommands (`add`, `login`, `logout`, `send`, `status`, `groups`, etc.) already accept `--channel <name>` and route through `createAdapterInstance()`. Discord works out of the box:
+   ```bash
+   enconvo channels add --channel discord --name mavis-discord --token "MTIz..." --agent chat_with_ai/chat --validate
+   enconvo channels login --channel discord --name mavis-discord -f
+   enconvo channels send --channel discord --name mavis-discord --chat "channelId" --message "test"
+   ```
+
+5. **Discord intents** — Client created with `Guilds`, `GuildMessages`, `MessageContent` (privileged), `DirectMessages`, and `Partials.Channel` (needed for DM support). The `MessageContent` intent must be enabled in the Discord Developer Portal.
+
+**Verification:** `npx tsc --noEmit` passes clean. `enconvo channels list` shows Discord as available channel with "none configured" instances.
+
+Files: 13 changed, 916 insertions, 7 deletions.
+
 ---
 
 ## What's Next
@@ -839,8 +885,8 @@ Files: 7 changed (6 in repo + 1 KB file outside repo), 181 insertions, 23 deleti
 - Cross-agent session forwarding (agent A spawns a task for agent B)
 
 ### Future: Additional Channels
-- Discord, Slack, etc. — each implements `ChannelAdapter`
-- Same one-bot-per-agent model
+- Slack, etc. — each implements `ChannelAdapter`
+- Same one-bot-per-agent model (proven with Telegram + Discord)
 
 ### Future: Self-Evolution Patterns (OpenClaw-Inspired)
 - **Channel health watchdog** — periodic heartbeat probes, auto-restart on failure
@@ -869,6 +915,7 @@ Files: 7 changed (6 in repo + 1 KB file outside repo), 181 insertions, 23 deleti
 - macOS with Node.js (Homebrew or nvm)
 - EnConvo running locally (port 54535)
 - Telegram bot token(s) — see Telegram Bot Setup below
+- Discord bot token(s) — see Discord Bot Setup below
 - For LaunchAgent: `/bin/bash` needs Full Disk Access (install script guides you)
 
 ### Telegram Bot Setup (BotFather)
@@ -919,6 +966,45 @@ enconvo channels add --channel telegram --name mavis \
 - Bots respond only to @mentions, replies, or targeted commands
 - Each bot has isolated session context — no cross-contamination
 
+### Discord Bot Setup (Developer Portal)
+
+Each Discord bot needs to be created in the [Discord Developer Portal](https://discord.com/developers/applications) before registering with `enconvo_cli`.
+
+#### 1. Create the application + bot
+1. Go to https://discord.com/developers/applications → **New Application**
+2. Name it (e.g. "Mavis - EnConvo") → Create
+3. Go to **Bot** tab → the bot is auto-created
+4. Click **Reset Token** → copy and save the token
+
+#### 2. Enable privileged intents
+In the **Bot** tab, enable:
+- **Message Content Intent** (required — the bot reads message text)
+- **Server Members Intent** (optional, for future features)
+
+#### 3. Invite the bot to your server
+1. Go to **OAuth2** → **URL Generator**
+2. Select scopes: `bot`
+3. Select bot permissions: `Send Messages`, `Read Message History`, `Attach Files`, `Use Slash Commands`
+4. Copy the generated URL → open in browser → select your server
+
+#### 4. Register with enconvo_cli
+```bash
+enconvo channels add --channel discord --name mavis-discord \
+  --token "MTIzNDU2Nzg5..." \
+  --agent chat_with_ai/chat \
+  --validate
+```
+
+#### 5. Start the bot
+```bash
+enconvo channels login --channel discord --name mavis-discord -f
+```
+
+#### 6. Interaction model
+- **DMs:** Bot responds to all messages
+- **Servers:** Bot responds only when @mentioned, replied to, or on `!commands`
+- **Commands:** `!reset`, `!status`, `!help` (not slash commands — prefix-based)
+
 ### Development (Legacy Single Bot)
 ```bash
 cp .env.example .env  # Add BOT_TOKEN
@@ -949,9 +1035,15 @@ enconvo channels send --channel telegram --name vivienne --group main --message 
 enconvo channels send --channel telegram --name vivienne --group main --reset --message "fresh convo"
 enconvo channels send --channel telegram --name timothy --chat "-5063546642" --message "raw ID still works"
 
+# Discord instances (same commands, different --channel)
+enconvo channels add --channel discord --name mavis-discord --token "MTIz..." --agent chat_with_ai/chat --validate
+enconvo channels login --channel discord --name mavis-discord -f
+enconvo channels send --channel discord --name mavis-discord --chat "123456789012345678" --message "hello"
+
 # Monitor
 enconvo channels status --channel telegram
 enconvo channels status --channel telegram --name vivienne
+enconvo channels status --channel discord
 enconvo channels logs --channel telegram --name vivienne
 
 # Via npm/npx
@@ -1009,12 +1101,24 @@ npm run uninstall-service # Stop + remove
 
 ### Group Chat Quick Reference
 
+**Telegram:**
+
 | Action | Result |
 |---|---|
 | `@BotName message` | Only that bot responds |
 | Reply to bot's message | Only that bot responds |
 | `/reset@BotName` | Resets only that bot's session |
 | Bare `/reset` | Only one bot receives it (Telegram picks) |
+| Regular text (no @mention) | No bot responds |
+
+**Discord (servers):**
+
+| Action | Result |
+|---|---|
+| `@BotName message` | Only that bot responds |
+| Reply to bot's message | Only that bot responds |
+| `!reset` | Resets session for that channel |
+| `!status` / `!help` | Bot responds with info |
 | Regular text (no @mention) | No bot responds |
 
 ### Troubleshooting
@@ -1026,3 +1130,5 @@ npm run uninstall-service # Stop + remove
 | 409 Conflict error | Another process polling same token | Kill old process: `ps aux \| grep telegram` |
 | Empty responses | EnConvo not running | `curl http://localhost:54535/health` |
 | Bot works in DM but not group | Privacy mode or not a member | Check BotFather settings, add bot to group |
+| Discord bot ignores messages | Message Content Intent disabled | Enable in Developer Portal → Bot → Privileged Intents |
+| Discord bot can't DM | Missing Partials.Channel | Built-in — verify discord.js v14 installed |
