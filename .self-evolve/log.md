@@ -234,3 +234,11 @@
   - Added completions test suite
   - **MILESTONE: 200+ tests, 20 test suites**
   - CLI now has 16 top-level commands + 4 command groups
+
+## [2026-03-02 07:37] Self-Evolve Round 25: Reset tests
+- **Status:** success
+- **Tests:** 205/205 passing (21 suites, +4 new tests)
+- **Notes:**
+  - Added `src/commands/__tests__/reset.test.ts` (4 tests)
+  - Tests: channel reset, agents reset, backup creation, reset-all file deletion
+  - Tests verify store functions return defaults after file removal
