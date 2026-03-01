@@ -1299,12 +1299,19 @@ enconvo
 ├── channels (add, remove, list, login, logout, status, send, groups, enable, disable, set)
 ├── agents (list, add, delete, set-identity, sync, bindings, bind, unbind)
 ├── config (get, set, unset, path)
-├── message (send)
+├── message (send, broadcast)
 ├── status
 ├── doctor
 ├── health
 ├── sessions
-└── logs
+├── logs
+├── info
+├── configure
+├── export
+├── import
+├── version
+├── reset
+└── completions
 ```
 
 ### Test Coverage Growth
@@ -1317,6 +1324,17 @@ enconvo
 | Round 8 | 76 | 8 |
 | Round 9 | 91 | 10 |
 | Round 10 | 96 | 11 |
+| Round 11 | 116 | 13 |
+| Round 14 | 131 | 14 |
+| Round 15 | 148 | 15 |
+| Round 17 | 168 | 16 |
+| Round 19 | 189 | 17 |
+| Round 21 | 193 | 18 |
+| Round 24 (200 milestone) | 201 | 20 |
+| Round 27 | 221 | 23 |
+| Round 28 | 234 | 24 |
+| Round 29 | 239 | 25 |
+| Round 32 (current) | 247 | 26 |
 
 ### Key Files Added During Self-Evolve
 
@@ -1324,13 +1342,26 @@ enconvo
 |---|---|
 | `src/utils/message-splitter.ts` | Shared message splitting (dedup from Telegram/Discord) |
 | `src/utils/dot-path.ts` | Navigate nested config by dot-separated paths |
+| `src/utils/file-types.ts` | Shared IMAGE_EXTS + isImageFile (dedup from 5 files) |
+| `src/utils/media-dir.ts` | Shared media directory helpers (dedup from Telegram/Discord) |
+| `src/services/handler-core.ts` | Shared message handling (ChannelIO, handleMessage, sendParsedResponse) |
+| `src/services/agent-router.ts` | Cross-agent delegation routing |
+| `src/channels/telegram/utils/telegram-io.ts` | Shared Telegram ChannelIO factory |
+| `src/channels/discord/utils/file-sender.ts` | Shared Discord ChannelIO factory + file sender |
 | `src/commands/config/` | Config get/set/unset/path command group |
-| `src/commands/message/` | Message send command group |
+| `src/commands/message/` | Message send/broadcast command group |
 | `src/commands/status.ts` | Unified status command |
-| `src/commands/doctor.ts` | Config validation + workspace checks |
+| `src/commands/doctor.ts` | Config validation + workspace checks (with extractable detectIssues) |
 | `src/commands/health.ts` | API connectivity probe |
 | `src/commands/sessions.ts` | List all channel sessions |
 | `src/commands/logs.ts` | Tail adapter log files |
+| `src/commands/info.ts` | System info (CLI/app/adapters/agents/platform) |
+| `src/commands/configure.ts` | Interactive setup wizard |
+| `src/commands/export-import.ts` | Config export (--strip-tokens) / import (--merge, --dry-run) |
+| `src/commands/version.ts` | CLI and app version display |
+| `src/commands/reset.ts` | Config/agents reset with auto-backup |
+| `src/commands/completions.ts` | bash/zsh/fish shell completions |
+| `src/commands/channels/test.ts` | Bot token validation (Telegram getMe / Discord @me) |
 | `src/commands/agents/bind.ts` | Multi-channel agent binding |
 | `src/commands/agents/unbind.ts` | Remove channel binding |
 | `eslint.config.mjs` | ESLint flat config with TypeScript |
