@@ -23,7 +23,7 @@ interface Config {
 }
 
 function loadConfig(): Config {
-  const configPath = path.join(__dirname, '..', 'config.json');
+  const configPath = path.join(__dirname, '..', '..', '..', 'config.json');
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
   const botToken = process.env.BOT_TOKEN;

@@ -1,5 +1,5 @@
 import { Bot, Context } from 'grammy';
-import { resetSession, getSessionId, getAgent, setAgent } from '../services/session-manager';
+import { resetSession, getSessionId, getAgent, setAgent } from '../../../services/session-manager';
 import { config } from '../config';
 
 export function registerCommands(bot: Bot): void {

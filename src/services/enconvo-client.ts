@@ -1,4 +1,4 @@
-import { config } from '../config';
+import { config } from '../channels/telegram/config';
 
 interface EnConvoContentItem {
   type: string;
@@ -22,10 +22,23 @@ export interface EnConvoResponse {
   result?: string;
 }
 
-export async function callEnConvo(inputText: string, sessionId: string, agentPath: string = 'chat_with_ai/chat'): Promise<EnConvoResponse> {
-  const url = `${config.enconvo.url}/command/call/${agentPath}`;
+export interface CallEnConvoOptions {
+  url?: string;
+  timeoutMs?: number;
+}
+
+export async function callEnConvo(
+  inputText: string,
+  sessionId: string,
+  agentPath: string = 'chat_with_ai/chat',
+  options?: CallEnConvoOptions,
+): Promise<EnConvoResponse> {
+  const baseUrl = options?.url ?? config.enconvo.url;
+  const timeout = options?.timeoutMs ?? config.enconvo.timeoutMs;
+
+  const url = `${baseUrl}/command/call/${agentPath}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.enconvo.timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
     const res = await fetch(url, {
@@ -41,6 +54,6 @@ export async function callEnConvo(inputText: string, sessionId: string, agentPat
 
     return (await res.json()) as EnConvoResponse;
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer);
   }
 }

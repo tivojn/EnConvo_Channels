@@ -1,16 +1,24 @@
 {
-  "name": "enconvo-telegram-adapter",
-  "version": "1.0.0",
-  "description": "Telegram adapter for EnConvo AI",
+  "name": "enconvo-cli",
+  "version": "2.0.0",
+  "description": "EnConvo CLI — manage channels, agents, and more",
   "main": "src/index.ts",
+  "bin": {
+    "enconvo": "./src/cli.ts"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "cli": "tsx src/cli.ts",
+    "install-service": "bash scripts/install.sh",
+    "uninstall-service": "bash scripts/uninstall.sh",
+    "logs": "tail -f ~/Library/Logs/enconvo-telegram-adapter.log"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "grammy": "^1.40.1"
   },

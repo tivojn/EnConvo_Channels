@@ -2,9 +2,9 @@ import { Context } from 'grammy';
 import { InputFile } from 'grammy';
 import * as fs from 'fs';
 import * as path from 'path';
-import { callEnConvo } from '../services/enconvo-client';
-import { parseResponse } from '../services/response-parser';
-import { getSessionId, getAgent } from '../services/session-manager';
+import { callEnConvo } from '../../../services/enconvo-client';
+import { parseResponse } from '../../../services/response-parser';
+import { getSessionId, getAgent } from '../../../services/session-manager';
 import { splitMessage } from '../utils/message-splitter';
 import { startTypingIndicator } from '../middleware/typing';
 

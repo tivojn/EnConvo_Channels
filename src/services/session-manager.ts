@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { config, AgentConfig } from '../config';
+import { config, AgentConfig } from '../channels/telegram/config';
 
 const sessionOverrides = new Map<number, string>();
 const agentOverrides = new Map<number, string>();

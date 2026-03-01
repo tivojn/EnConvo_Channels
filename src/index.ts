@@ -1,4 +1,4 @@
-import { createBot } from './bot';
+import { createBot } from './channels/telegram/bot';
 
 async function main() {
   console.log('Starting EnConvo Telegram Adapter...');
