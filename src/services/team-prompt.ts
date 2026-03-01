@@ -55,20 +55,20 @@ function extractIdentityIntro(content: string, agent: AgentMember): string {
     lines.push(`Your Telegram bot: ${agent.bindings.telegramBot}`);
   }
 
-  // Extract the intro paragraph (after the --- separator)
-  const parts = content.split('---');
+  // Split on --- to get sections: [header, intro, ...]
+  const parts = content.split(/\n---\n/).map((s) => s.trim());
+
+  // Section after first --- is the intro paragraph
   if (parts.length > 1) {
-    const introPart = parts[parts.length - 1].trim();
-    // Get first non-empty paragraph that's not a heading
-    const paragraphs = introPart.split('\n\n');
-    for (const p of paragraphs) {
-      const trimmed = p.trim();
-      if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('-') && !trimmed.startsWith('*')) {
-        lines.push(trimmed);
-        break;
-      }
+    const introLines = parts[1].split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+    if (introLines.length > 0) {
+      lines.push(introLines.join('\n'));
     }
   }
+
+  // Workspace pointer — agent reads their own files for detailed info (appearance, portrait, etc.)
+  lines.push(`Your workspace: ${agent.workspacePath}/`);
+  lines.push('Read your workspace files for personal details: IDENTITY.md (appearance, portrait), SOUL.md, AGENTS.md.');
 
   return lines.join('\n');
 }
