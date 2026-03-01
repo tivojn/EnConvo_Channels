@@ -95,3 +95,12 @@
   - Added CLI integration test suite (verifies all command groups register correctly)
   - Updated OpenClaw parity doc: 25 commands marked as done
   - Updated DEVLOG.md with all self-evolve rounds (4-10) documentation
+
+## [2026-03-02 07:03] Self-Evolve Round 11: message broadcast + registry/paths tests
+- **Status:** success
+- **Tests:** 116/116 passing (13 suites, +20 new tests)
+- **Notes:**
+  - Added `enconvo message broadcast` command (multi-target messaging, --all-instances)
+  - Added channel registry test suite (11 tests: adapter lookup, capabilities, interface methods)
+  - Added config paths test suite (9 tests: verify all path constants)
+  - Updated CLI integration test for broadcast subcommand

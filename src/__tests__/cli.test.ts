@@ -95,5 +95,6 @@ describe('CLI command registration', () => {
 
     const subs = getSubcommandNames(program, 'message');
     expect(subs).toContain('send');
+    expect(subs).toContain('broadcast');
   });
 });
