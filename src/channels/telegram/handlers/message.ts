@@ -17,7 +17,16 @@ export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: 
     if (ctx.me?.username) {
       text = text.replace(new RegExp(`@${ctx.me.username}`, 'gi'), '').trim();
     }
-    if (!text) return;
+
+    // Bare @mention with no text — use replied-to message or nudge EnConvo with session context
+    if (!text) {
+      const replyText = ctx.message?.reply_to_message?.text;
+      if (replyText) {
+        text = replyText;
+      } else {
+        text = 'Hey, what can I help you with?';
+      }
+    }
 
     const sessionId = getSessionId(chatId, instanceId);
     const agentPath = pinnedAgentPath ?? getAgent(chatId).path;
