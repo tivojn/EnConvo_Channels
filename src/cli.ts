@@ -2,6 +2,9 @@
 import { Command } from 'commander';
 import { registerChannelsCommands } from './commands/channels/index';
 import { registerAgentsCommands } from './commands/agents/index';
+import { registerConfigCommands } from './commands/config/index';
+import { registerStatusCommand } from './commands/status';
+import { registerDoctorCommand } from './commands/doctor';
 
 const program = new Command();
 
@@ -12,5 +15,8 @@ program
 
 registerChannelsCommands(program);
 registerAgentsCommands(program);
+registerConfigCommands(program);
+registerStatusCommand(program);
+registerDoctorCommand(program);
 
 program.parse();

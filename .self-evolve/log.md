@@ -36,3 +36,13 @@
   - Added GitHub Actions CI workflow (Node 20+22, typecheck + test)
   - Completed OpenClaw CLI research: 25 command domains, 142+ subcommands mapped
   - Created `.self-evolve/openclaw-parity.md` with full parity gap analysis
+
+## [2026-03-02 06:44] Self-Evolve Round 5: config/status/doctor commands + dot-path utility
+- **Status:** success
+- **Tests:** 72/72 passing (7 suites, +22 new tests)
+- **Notes:**
+  - Added `enconvo config get/set/unset/path` command group (OpenClaw parity)
+  - Added `enconvo status` top-level command (API probe, team info, channel summary)
+  - Added `enconvo doctor` command (config validation, workspace checks, connectivity)
+  - Created `src/utils/dot-path.ts` utility (getByPath, setByPath, unsetByPath, parseValue)
+  - CLI now has 5 command groups: channels, agents, config, status, doctor
