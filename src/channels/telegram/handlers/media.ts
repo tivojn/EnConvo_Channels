@@ -1,36 +1,12 @@
 import { Context } from 'grammy';
-import { InputFile } from 'grammy';
 import * as fs from 'fs';
 import * as path from 'path';
 import { callEnConvo } from '../../../services/enconvo-client';
 import { parseResponse } from '../../../services/response-parser';
 import { getSessionId, getAgent } from '../../../services/session-manager';
-import { sendParsedResponse, ChannelIO } from '../../../services/handler-core';
-import { startTypingIndicator } from '../middleware/typing';
+import { sendParsedResponse } from '../../../services/handler-core';
+import { createTelegramIO } from '../utils/telegram-io';
 import { ensureMediaDir } from '../../../utils/media-dir';
-import { TELEGRAM_MAX_LENGTH } from '../../../utils/message-splitter';
-import { isImageFile } from '../../../utils/file-types';
-
-function createTelegramIO(ctx: Context): ChannelIO {
-  return {
-    maxMessageLength: TELEGRAM_MAX_LENGTH,
-    sendText: async (text: string) => {
-      try {
-        await ctx.reply(text, { parse_mode: 'Markdown' });
-      } catch {
-        await ctx.reply(text);
-      }
-    },
-    sendFile: async (filePath: string) => {
-      if (isImageFile(filePath)) {
-        await ctx.replyWithPhoto(new InputFile(filePath));
-      } else {
-        await ctx.replyWithDocument(new InputFile(filePath));
-      }
-    },
-    startTyping: () => startTypingIndicator(ctx),
-  };
-}
 
 async function downloadFile(ctx: Context, fileId: string, extension: string): Promise<string> {
   const mediaDir = ensureMediaDir('telegram');

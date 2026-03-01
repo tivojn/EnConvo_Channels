@@ -276,3 +276,14 @@
   - Removed duplicate IMAGE_EXTS constant from 5 files: telegram handlers (2), channels send, message send, response-parser
   - Inlined trivial `extractFlowParamsPaths()` wrapper in response-parser
   - Added file-types test suite (5 tests)
+
+## [2026-03-02 07:50] Self-Evolve Round 30: Consolidate ChannelIO factories
+- **Status:** success
+- **Tests:** 239/239 passing (25 suites)
+- **Notes:**
+  - Created `src/channels/telegram/utils/telegram-io.ts` — shared createTelegramIO factory
+  - Created shared `createDiscordIO` in `src/channels/discord/utils/file-sender.ts`
+  - Removed duplicate createTelegramIO from message.ts and media.ts
+  - Removed duplicate createDiscordIO from message.ts and media.ts
+  - Removed dead sendFile/sendWithMarkdownFallback helpers from telegram message.ts
+  - Net: -30 LOC, 2 fewer files need updating when IO behavior changes

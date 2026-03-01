@@ -1,15 +1,13 @@
-import { Message, TextChannel } from 'discord.js';
+import { Message } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { callEnConvo } from '../../../services/enconvo-client';
 import { parseResponse } from '../../../services/response-parser';
 import { loadGlobalConfig } from '../../../config/store';
-import { sendParsedResponse, ChannelIO } from '../../../services/handler-core';
-import { sendFile } from '../utils/file-sender';
-import { startTypingIndicator } from '../middleware/typing';
+import { sendParsedResponse } from '../../../services/handler-core';
+import { createDiscordIO } from '../utils/file-sender';
 import { getSessionId } from './commands';
 import { ensureMediaDir } from '../../../utils/media-dir';
-import { DISCORD_MAX_LENGTH } from '../../../utils/message-splitter';
 
 async function downloadAttachment(url: string, filename: string): Promise<string> {
   const mediaDir = ensureMediaDir('discord');
@@ -18,15 +16,6 @@ async function downloadAttachment(url: string, filename: string): Promise<string
   const buffer = Buffer.from(await res.arrayBuffer());
   fs.writeFileSync(filePath, buffer);
   return filePath;
-}
-
-function createDiscordIO(message: Message): ChannelIO {
-  return {
-    maxMessageLength: DISCORD_MAX_LENGTH,
-    sendText: async (text: string) => { await message.reply(text); },
-    sendFile: async (filePath: string) => { await sendFile(message, filePath); },
-    startTyping: () => startTypingIndicator(message.channel as TextChannel),
-  };
 }
 
 export function createMediaHandler(agentPath?: string, instanceId?: string) {

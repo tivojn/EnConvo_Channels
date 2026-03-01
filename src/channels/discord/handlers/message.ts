@@ -1,19 +1,8 @@
-import { Client, Message, TextChannel } from 'discord.js';
+import { Client, Message } from 'discord.js';
 import { loadGlobalConfig } from '../../../config/store';
-import { handleMessage, buildRosterContext, ChannelIO } from '../../../services/handler-core';
-import { sendFile } from '../utils/file-sender';
-import { startTypingIndicator } from '../middleware/typing';
+import { handleMessage, buildRosterContext } from '../../../services/handler-core';
+import { createDiscordIO } from '../utils/file-sender';
 import { getSessionId } from './commands';
-import { DISCORD_MAX_LENGTH } from '../../../utils/message-splitter';
-
-function createDiscordIO(message: Message): ChannelIO {
-  return {
-    maxMessageLength: DISCORD_MAX_LENGTH,
-    sendText: async (text: string) => { await message.reply(text); },
-    sendFile: async (filePath: string) => { await sendFile(message, filePath); },
-    startTyping: () => startTypingIndicator(message.channel as TextChannel),
-  };
-}
 
 export function createTextMessageHandler(client: Client, agentPath?: string, instanceId?: string) {
   const roster = buildRosterContext(instanceId);

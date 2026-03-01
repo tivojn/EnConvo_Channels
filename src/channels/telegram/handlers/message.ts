@@ -1,19 +1,7 @@
 import { Context } from 'grammy';
-import { InputFile } from 'grammy';
 import { getSessionId, getAgent } from '../../../services/session-manager';
-import { handleMessage, buildRosterContext, ChannelIO } from '../../../services/handler-core';
-import { startTypingIndicator } from '../middleware/typing';
-import { TELEGRAM_MAX_LENGTH } from '../../../utils/message-splitter';
-import { isImageFile } from '../../../utils/file-types';
-
-function createTelegramIO(ctx: Context): ChannelIO {
-  return {
-    maxMessageLength: TELEGRAM_MAX_LENGTH,
-    sendText: async (text: string) => { await sendWithMarkdownFallback(ctx, text); },
-    sendFile: async (filePath: string) => { await sendFile(ctx, filePath); },
-    startTyping: () => startTypingIndicator(ctx),
-  };
-}
+import { handleMessage, buildRosterContext } from '../../../services/handler-core';
+import { createTelegramIO } from '../utils/telegram-io';
 
 export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: string) {
   const roster = buildRosterContext(instanceId);
@@ -51,19 +39,3 @@ export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: 
 
 // Legacy export for npm run dev path
 export const handleTextMessage = createTextMessageHandler();
-
-async function sendFile(ctx: Context, filePath: string): Promise<void> {
-  if (isImageFile(filePath)) {
-    await ctx.replyWithPhoto(new InputFile(filePath));
-  } else {
-    await ctx.replyWithDocument(new InputFile(filePath));
-  }
-}
-
-async function sendWithMarkdownFallback(ctx: Context, text: string): Promise<void> {
-  try {
-    await ctx.reply(text, { parse_mode: 'Markdown' });
-  } catch {
-    await ctx.reply(text);
-  }
-}
