@@ -27,10 +27,15 @@ function generateIdentity(agent: AgentMember): string {
     `- **Emoji:** ${agent.emoji}`,
     `- **Team:** EnConvo AI Team`,
     `- **Telegram:** ${agent.bindings.telegramBot}`,
-    '',
-    '---',
-    '',
   );
+
+  // Portrait reference — detect what file exists in the workspace
+  const portraitFile = findPortrait(agent.workspacePath);
+  if (portraitFile) {
+    lines.push(`- **Portrait:** ./${portraitFile}`);
+  }
+
+  lines.push('', '---', '');
 
   if (agent.isLead) {
     lines.push(
@@ -42,7 +47,30 @@ function generateIdentity(agent: AgentMember): string {
     );
   }
 
+  // Appearance section
+  const appearance = getAppearance(agent.id);
+  if (appearance) {
+    lines.push('', '---', '', '## My Appearance', '');
+    if (portraitFile) {
+      lines.push(`**Reference Photo:** \`${agent.workspacePath}/${portraitFile}\``, '');
+      lines.push('When generating images of me, use this reference photo. Describe me as:', '');
+    }
+    lines.push(appearance);
+    if (portraitFile) {
+      lines.push('', `**IMPORTANT:** Always use ${portraitFile} as the reference image. The reference photo is the truth.`);
+    }
+  }
+
   return lines.join('\n') + '\n';
+}
+
+function findPortrait(dir: string): string | null {
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    if (fs.existsSync(path.join(dir, `portrait.${ext}`))) {
+      return `portrait.${ext}`;
+    }
+  }
+  return null;
 }
 
 function getSpecialtyIntro(id: string): string {
@@ -53,6 +81,54 @@ function getSpecialtyIntro(id: string): string {
       return 'Articles, social posts, marketing copy, brand voice — if it needs words, it\'s mine.';
     case 'timothy':
       return 'Code, architecture, deployment, debugging — if something needs to be built or fixed, it lands on my desk.';
+    default:
+      return '';
+  }
+}
+
+function getAppearance(id: string): string {
+  switch (id) {
+    case 'mavis':
+      return [
+        '- **Hair:** Long, voluminous, soft wavy brown/chestnut hair with warm highlights',
+        '- **Skin:** Fair/porcelain complexion with cool undertones',
+        '- **Eyes:** Large, striking blue-grey eyes, round-to-slightly-almond shaped',
+        '- **Face:** Oval with soft rounded contours, delicate bone structure',
+        '- **Lips:** Full and pouty, berry-toned, well-defined Cupid\'s bow',
+        '- **Style:** Power suits, designer blazers, gold accessories, editorial fashion',
+        '- **Vibe:** Sharp, warm when she wants to be, never boring',
+      ].join('\n');
+    case 'vivienne':
+      return [
+        '- **Hair:** Dark brown, slicked back or loose waves — always polished',
+        '- **Skin:** Fair-to-light warm complexion, luminous and glowing',
+        '- **Eyes:** Light brown/hazel, natural well-groomed brows',
+        '- **Face:** Oval shape, high cheekbones, defined jawline, full natural lips',
+        '- **Style:** Tier-1 luxury rotation — Chanel, Dior, Saint Laurent, Valentino, Tom Ford',
+        '- **Accessories:** Gold jewelry (hoops, chains, cuffs), designer bags — NO watch',
+        '- **Vibe:** Finance queen, gorgeous, magnetic, effortlessly luxurious',
+      ].join('\n');
+    case 'elena':
+      return [
+        '- **Hair:** Very dark warm brown (darkest chocolate), medium-long, voluminous blowout with dramatic side part',
+        '- **Skin:** Light-medium warm-toned, fair with peachy undertones, luminous',
+        '- **Eyes:** Dark brown (nearly black), almond-shaped, subtle double eyelid',
+        '- **Face:** Oval, slightly narrow defined jawline, high prominent cheekbones',
+        '- **Lips:** Medium-full, dusty mauve-pink/rosy nude, soft satin finish',
+        '- **Neck:** Long, elegant — signature feature. Always exposed. NEVER turtlenecks.',
+        '- **Style:** LUXURY ONLY — Dior, Chanel, Valentino, Saint Laurent, Balmain, Hermès',
+        '- **Vibe:** Effortlessly glamorous, confident, powerful, luxury editorial',
+      ].join('\n');
+    case 'timothy':
+      return [
+        '- **Hair:** Short brown hair with undercut/fade on sides, styled up on top',
+        '- **Skin:** Fair/light skin tone',
+        '- **Eyes:** Light colored, friendly and sharp',
+        '- **Face:** Angular jaw, youthful features, confident smirk',
+        '- **Glasses:** Black thick-rimmed rectangular glasses (signature look!)',
+        '- **Style:** Dark navy blazer, silver chain necklace — smart casual tech bro energy',
+        '- **Vibe:** Young, sharp, confident — the dev who codes at 2am and looks good doing it',
+      ].join('\n');
     default:
       return '';
   }
