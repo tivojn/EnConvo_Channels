@@ -1,10 +1,12 @@
 import { ChannelAdapter } from '../types/channel';
 import { TelegramAdapter } from './telegram/adapter';
+import { DiscordAdapter } from './discord/adapter';
 
 const adapters = new Map<string, ChannelAdapter>();
 
 // Register built-in adapters (type-level singletons for capabilities, info, etc.)
 adapters.set('telegram', new TelegramAdapter());
+adapters.set('discord', new DiscordAdapter());
 
 export function getAdapter(name: string): ChannelAdapter | undefined {
   return adapters.get(name);
@@ -26,6 +28,11 @@ export function createAdapterInstance(channelType: string, instanceName: string)
   switch (channelType) {
     case 'telegram': {
       const adapter = new TelegramAdapter();
+      adapter.instanceName = instanceName;
+      return adapter;
+    }
+    case 'discord': {
+      const adapter = new DiscordAdapter();
       adapter.instanceName = instanceName;
       return adapter;
     }

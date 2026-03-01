@@ -13,7 +13,7 @@ export interface InstanceConfig {
   enabled: boolean;
   token: string;
   agent: string;
-  allowedUserIds: number[];
+  allowedUserIds: (number | string)[];
   service: {
     plistLabel: string;
     logPath: string;
