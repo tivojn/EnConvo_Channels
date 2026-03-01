@@ -4,18 +4,80 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
-import { parseResponse } from '../../services/response-parser';
+import { parseResponse, ParsedResponse } from '../../services/response-parser';
 import { loadGlobalConfig } from '../../config/store';
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+
+async function deliverTelegram(token: string, chatId: string, parsed: ParsedResponse): Promise<void> {
+  const bot = new Bot(token);
+
+  if (parsed.text) {
+    try {
+      await bot.api.sendMessage(chatId, parsed.text, { parse_mode: 'Markdown' });
+    } catch {
+      await bot.api.sendMessage(chatId, parsed.text);
+    }
+  }
+
+  for (const filePath of parsed.filePaths) {
+    if (!fs.existsSync(filePath)) continue;
+    const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+    if (IMAGE_EXTS.has(ext)) {
+      await bot.api.sendPhoto(chatId, new InputFile(filePath));
+    } else {
+      await bot.api.sendDocument(chatId, new InputFile(filePath));
+    }
+  }
+}
+
+async function deliverDiscord(token: string, channelId: string, parsed: ParsedResponse): Promise<void> {
+  const baseUrl = `https://discord.com/api/v10/channels/${channelId}/messages`;
+  const headers = {
+    Authorization: `Bot ${token}`,
+    'Content-Type': 'application/json',
+    'User-Agent': 'DiscordBot (https://enconvo.com, 1.0)',
+  };
+
+  if (parsed.text) {
+    // Split at 2000 chars (Discord limit)
+    const { splitMessage } = await import('../../channels/discord/utils/message-splitter');
+    const chunks = splitMessage(parsed.text);
+    for (const chunk of chunks) {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content: chunk }),
+      });
+      if (!res.ok) throw new Error(`Discord API ${res.status}: ${await res.text()}`);
+    }
+  }
+
+  for (const filePath of parsed.filePaths) {
+    if (!fs.existsSync(filePath)) continue;
+    const form = new FormData();
+    const fileData = fs.readFileSync(filePath);
+    const fileName = filePath.slice(filePath.lastIndexOf('/') + 1);
+    form.append('files[0]', new Blob([fileData]), fileName);
+    const res = await fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bot ${token}`,
+        'User-Agent': 'DiscordBot (https://enconvo.com, 1.0)',
+      },
+      body: form,
+    });
+    if (!res.ok) throw new Error(`Discord file upload ${res.status}: ${await res.text()}`);
+  }
+}
 
 export function registerSend(parent: Command): void {
   parent
     .command('send')
     .description('Send a message through a channel instance and get the response')
-    .requiredOption('--channel <name>', 'Channel type (e.g. telegram)')
+    .requiredOption('--channel <name>', 'Channel type (e.g. telegram, discord)')
     .requiredOption('--name <name>', 'Instance name (e.g. vivienne)')
-    .option('--chat <id>', 'Chat ID to send response to')
+    .option('--chat <id>', 'Chat/channel ID to send response to')
     .option('--group <name>', 'Named group (resolves to chat ID)')
     .requiredOption('--message <text>', 'Message to send')
     .option('--reset', 'Start a fresh conversation (new session ID)')
@@ -41,12 +103,12 @@ export function registerSend(parent: Command): void {
       }
 
       const config = loadGlobalConfig();
+      const channel = opts.channel as string;
       const sessionId = opts.reset
-        ? `telegram-${chatId}-${opts.name}-${crypto.randomUUID().slice(0, 8)}`
-        : `telegram-${chatId}-${opts.name}`;
+        ? `${channel}-${chatId}-${opts.name}-${crypto.randomUUID().slice(0, 8)}`
+        : `${channel}-${chatId}-${opts.name}`;
 
       try {
-        // Call EnConvo
         if (!opts.json) console.log(`Sending to ${opts.name} (${instance.agent})...`);
 
         const response = await callEnConvo(opts.message, sessionId, instance.agent, {
@@ -65,30 +127,22 @@ export function registerSend(parent: Command): void {
           return;
         }
 
-        // Send response to Telegram chat
-        const bot = new Bot(instance.token);
-
-        if (parsed.text) {
-          try {
-            await bot.api.sendMessage(chatId, parsed.text, { parse_mode: 'Markdown' });
-          } catch {
-            await bot.api.sendMessage(chatId, parsed.text);
-          }
-        }
-
-        for (const filePath of parsed.filePaths) {
-          if (!fs.existsSync(filePath)) continue;
-          const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-          if (IMAGE_EXTS.has(ext)) {
-            await bot.api.sendPhoto(chatId, new InputFile(filePath));
-          } else {
-            await bot.api.sendDocument(chatId, new InputFile(filePath));
-          }
+        // Deliver to the appropriate channel
+        switch (channel) {
+          case 'telegram':
+            await deliverTelegram(instance.token, chatId, parsed);
+            break;
+          case 'discord':
+            await deliverDiscord(instance.token, chatId, parsed);
+            break;
+          default:
+            throw new Error(`Channel "${channel}" does not support send yet.`);
         }
 
         if (opts.json) {
           console.log(JSON.stringify({
             instance: opts.name,
+            channel,
             chat: chatId,
             message: opts.message,
             response: parsed.text,
