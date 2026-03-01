@@ -1,13 +1,116 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
-import { loadGlobalConfig, listChannelInstances } from '../config/store';
-import { loadAgentsRoster } from '../config/agent-store';
+import { loadGlobalConfig, listChannelInstances, GlobalConfig } from '../config/store';
+import { loadAgentsRoster, AgentsRoster } from '../config/agent-store';
 import { ENCONVO_CLI_DIR, ENCONVO_CLI_CONFIG_PATH, AGENTS_CONFIG_PATH } from '../config/paths';
 
-interface Issue {
+export interface Issue {
   level: 'error' | 'warn' | 'info';
   message: string;
   fix?: string;
+}
+
+/**
+ * Detect configuration issues (pure function, no side effects).
+ * Checks: config dir, config file, version, URL, channel tokens, allowed users,
+ * duplicate agent paths, roster leads, workspace existence.
+ */
+export function detectIssues(opts: {
+  configDirExists: boolean;
+  configFileExists: boolean;
+  agentsFileExists: boolean;
+  config: GlobalConfig | null;
+  roster: AgentsRoster | null;
+  rosterParseError?: string;
+}): Issue[] {
+  const issues: Issue[] = [];
+
+  if (!opts.configDirExists) {
+    issues.push({
+      level: 'error',
+      message: 'Config directory missing',
+      fix: `Run: mkdir -p ${ENCONVO_CLI_DIR}`,
+    });
+  }
+
+  if (!opts.configFileExists) {
+    issues.push({
+      level: 'error',
+      message: 'Config file missing — run any command to auto-create',
+    });
+  }
+
+  const config = opts.config;
+  if (config) {
+    if (config.version < 2) {
+      issues.push({ level: 'warn', message: 'Config using legacy v1 format — auto-migration will run on next save' });
+    }
+
+    if (!config.enconvo?.url) {
+      issues.push({ level: 'error', message: 'EnConvo URL not configured' });
+    }
+
+    // Check channel instances for missing tokens
+    for (const channelName of Object.keys(config.channels ?? {})) {
+      const instances = config.channels[channelName]?.instances ?? {};
+      for (const [name, inst] of Object.entries(instances)) {
+        if (!inst.token) {
+          issues.push({ level: 'error', message: `${channelName}.${name}: missing token` });
+        }
+        if (inst.enabled && inst.allowedUserIds.length === 0) {
+          issues.push({ level: 'warn', message: `${channelName}.${name}: no allowed users — bot will ignore all messages` });
+        }
+      }
+    }
+
+    // Check for duplicate agents across instances
+    const agentPaths = new Map<string, string[]>();
+    for (const channelName of Object.keys(config.channels ?? {})) {
+      const instances = config.channels[channelName]?.instances ?? {};
+      for (const [name, inst] of Object.entries(instances)) {
+        if (inst.agent) {
+          const key = inst.agent;
+          if (!agentPaths.has(key)) agentPaths.set(key, []);
+          agentPaths.get(key)!.push(`${channelName}/${name}`);
+        }
+      }
+    }
+    for (const [agent, usedBy] of agentPaths) {
+      if (usedBy.length > 1) {
+        issues.push({
+          level: 'info',
+          message: `Agent "${agent}" used by multiple instances: ${usedBy.join(', ')}`,
+        });
+      }
+    }
+  }
+
+  // Check agents roster
+  if (opts.rosterParseError) {
+    issues.push({ level: 'error', message: `Agents roster parse error: ${opts.rosterParseError}` });
+  } else if (opts.roster) {
+    const leads = opts.roster.members.filter(m => m.isLead);
+    if (leads.length === 0) {
+      issues.push({ level: 'warn', message: 'No team lead configured' });
+    }
+    if (leads.length > 1) {
+      issues.push({ level: 'info', message: `Multiple team leads: ${leads.map(l => l.name).join(', ')}` });
+    }
+
+    for (const member of opts.roster.members) {
+      if (member.workspacePath && !fs.existsSync(member.workspacePath)) {
+        issues.push({
+          level: 'warn',
+          message: `Agent "${member.id}" workspace missing: ${member.workspacePath}`,
+          fix: `Run: enconvo agents sync --regen`,
+        });
+      }
+    }
+  } else if (!opts.agentsFileExists) {
+    issues.push({ level: 'info', message: 'No agents roster found — run: enconvo agents add' });
+  }
+
+  return issues;
 }
 
 export function registerDoctorCommand(program: Command): void {
@@ -16,47 +119,34 @@ export function registerDoctorCommand(program: Command): void {
     .description('Check configuration and report issues')
     .option('--json', 'Output as JSON')
     .action(async (opts: { json?: boolean }) => {
-      const issues: Issue[] = [];
-
-      // Check config dir exists
-      if (!fs.existsSync(ENCONVO_CLI_DIR)) {
-        issues.push({
-          level: 'error',
-          message: 'Config directory missing',
-          fix: `Run: mkdir -p ${ENCONVO_CLI_DIR}`,
-        });
-      }
-
-      // Check config file
-      if (!fs.existsSync(ENCONVO_CLI_CONFIG_PATH)) {
-        issues.push({
-          level: 'error',
-          message: 'Config file missing — run any command to auto-create',
-        });
-      }
-
-      let config;
+      let config: GlobalConfig | null = null;
       try {
         config = loadGlobalConfig();
       } catch (e) {
-        issues.push({
-          level: 'error',
-          message: `Config file parse error: ${e instanceof Error ? e.message : String(e)}`,
-        });
+        // Will be handled via detectIssues
       }
 
+      let roster: AgentsRoster | null = null;
+      let rosterParseError: string | undefined;
+      if (fs.existsSync(AGENTS_CONFIG_PATH)) {
+        try {
+          roster = loadAgentsRoster();
+        } catch (e) {
+          rosterParseError = e instanceof Error ? e.message : String(e);
+        }
+      }
+
+      const issues = detectIssues({
+        configDirExists: fs.existsSync(ENCONVO_CLI_DIR),
+        configFileExists: fs.existsSync(ENCONVO_CLI_CONFIG_PATH),
+        agentsFileExists: fs.existsSync(AGENTS_CONFIG_PATH),
+        config,
+        roster,
+        rosterParseError,
+      });
+
+      // Probe EnConvo (network — not in detectIssues)
       if (config) {
-        // Check config version
-        if (config.version < 2) {
-          issues.push({ level: 'warn', message: 'Config using legacy v1 format — auto-migration will run on next save' });
-        }
-
-        // Check EnConvo URL
-        if (!config.enconvo?.url) {
-          issues.push({ level: 'error', message: 'EnConvo URL not configured' });
-        }
-
-        // Probe EnConvo
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 3000);
@@ -65,74 +155,6 @@ export function registerDoctorCommand(program: Command): void {
         } catch {
           issues.push({ level: 'warn', message: `EnConvo not reachable at ${config.enconvo.url} — is it running?` });
         }
-
-        // Check channel instances for missing tokens
-        for (const channelName of Object.keys(config.channels ?? {})) {
-          const instances = listChannelInstances(channelName);
-          for (const [name, inst] of Object.entries(instances)) {
-            if (!inst.token) {
-              issues.push({ level: 'error', message: `${channelName}.${name}: missing token` });
-            }
-            if (inst.enabled && inst.allowedUserIds.length === 0) {
-              issues.push({ level: 'warn', message: `${channelName}.${name}: no allowed users — bot will ignore all messages` });
-            }
-          }
-        }
-      }
-
-      // Check for duplicate agents across instances
-      if (config) {
-        const agentPaths = new Map<string, string[]>();
-        for (const channelName of Object.keys(config.channels ?? {})) {
-          const instances = listChannelInstances(channelName);
-          for (const [name, inst] of Object.entries(instances)) {
-            if (inst.agent) {
-              const key = inst.agent;
-              if (!agentPaths.has(key)) agentPaths.set(key, []);
-              agentPaths.get(key)!.push(`${channelName}/${name}`);
-            }
-          }
-        }
-        for (const [agent, usedBy] of agentPaths) {
-          if (usedBy.length > 1) {
-            issues.push({
-              level: 'info',
-              message: `Agent "${agent}" used by multiple instances: ${usedBy.join(', ')}`,
-            });
-          }
-        }
-      }
-
-      // Check agents roster
-      if (fs.existsSync(AGENTS_CONFIG_PATH)) {
-        try {
-          const roster = loadAgentsRoster();
-          const leads = roster.members.filter(m => m.isLead);
-          if (leads.length === 0) {
-            issues.push({ level: 'warn', message: 'No team lead configured' });
-          }
-          if (leads.length > 1) {
-            issues.push({ level: 'info', message: `Multiple team leads: ${leads.map(l => l.name).join(', ')}` });
-          }
-
-          // Check workspace existence
-          for (const member of roster.members) {
-            if (member.workspacePath && !fs.existsSync(member.workspacePath)) {
-              issues.push({
-                level: 'warn',
-                message: `Agent "${member.id}" workspace missing: ${member.workspacePath}`,
-                fix: `Run: enconvo agents sync --regen`,
-              });
-            }
-          }
-        } catch (e) {
-          issues.push({
-            level: 'error',
-            message: `Agents roster parse error: ${e instanceof Error ? e.message : String(e)}`,
-          });
-        }
-      } else {
-        issues.push({ level: 'info', message: 'No agents roster found — run: enconvo agents add' });
       }
 
       // Output

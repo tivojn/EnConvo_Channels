@@ -258,3 +258,12 @@
   - Tests: get/set/unset via dot-path on real config schema
   - Tests: parseValue type handling, nested instance reads, enconvoApp unset, overwrite
   - Discovered: loadGlobalConfig reconstructs from schema fields — custom keys dropped on reload
+
+## [2026-03-02 07:44] Self-Evolve Round 28: Doctor refactor + tests
+- **Status:** success
+- **Tests:** 234/234 passing (24 suites, +13 new tests)
+- **Notes:**
+  - Extracted `detectIssues()` pure function from doctor command handler
+  - 13 tests: config dir/file missing, legacy v1, missing token, empty allowedUserIds, disabled instance skip
+  - Tests: duplicate agent paths, no lead, multiple leads, missing workspace, roster parse error, no agents file
+  - Refactor separates pure validation from side effects (fetch, console, process.exit)
