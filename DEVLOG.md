@@ -214,7 +214,7 @@ Users configure these in EnConvo's GUI. `enconvo_cli` reads them to understand w
 
 ---
 
-## Current File Structure (Phase 8)
+## Current File Structure (Phase 10)
 
 ```
 src/
@@ -223,20 +223,29 @@ src/
 ├── types/
 │   └── channel.ts                  # ChannelAdapter interface
 ├── config/
-│   ├── paths.ts                    # ~/.enconvo_cli/ path constants
-│   └── store.ts                    # Global config CRUD, instance management, auto-migration
+│   ├── paths.ts                    # ~/.enconvo_cli/ path constants (config, agents, backups, prefs)
+│   ├── store.ts                    # Global config CRUD, instance management, auto-migration
+│   └── agent-store.ts             # Agent roster CRUD (~/.enconvo_cli/agents.json)
 ├── commands/
-│   └── channels/
-│       ├── index.ts                # Registers all subcommands
-│       ├── list.ts                 # List channels + status
-│       ├── status.ts               # Runtime status, probe live
-│       ├── add.ts                  # Configure a channel
-│       ├── remove.ts               # Remove/disable config
-│       ├── login.ts                # Start service (foreground or launchd)
-│       ├── logout.ts               # Stop service
-│       ├── capabilities.ts         # Show supported features
-│       ├── resolve.ts              # Resolve user/group identifier
-│       └── logs.ts                 # Tail log files
+│   ├── channels/
+│   │   ├── index.ts                # Registers all channel subcommands
+│   │   ├── list.ts                 # List channels + status
+│   │   ├── status.ts               # Runtime status, probe live
+│   │   ├── add.ts                  # Configure a channel
+│   │   ├── remove.ts               # Remove/disable config
+│   │   ├── login.ts                # Start service (foreground or launchd)
+│   │   ├── logout.ts               # Stop service
+│   │   ├── capabilities.ts         # Show supported features
+│   │   ├── resolve.ts              # Resolve user/group identifier
+│   │   └── logs.ts                 # Tail log files
+│   └── agents/
+│       ├── index.ts                # Registers all agent subcommands
+│       ├── list.ts                 # List team agents (--bindings, --json)
+│       ├── add.ts                  # Add agent to roster + create workspace
+│       ├── delete.ts               # Remove agent from roster (--force deletes workspace)
+│       ├── set-identity.ts         # Update agent identity fields + regenerate workspace
+│       ├── sync.ts                 # Sync workspace prompts → EnConvo preferences (--dry-run)
+│       └── bindings.ts             # Show agent↔channel binding map
 ├── channels/
 │   ├── registry.ts                 # Adapter lookup + createAdapterInstance()
 │   └── telegram/
@@ -245,7 +254,7 @@ src/
 │       ├── config.ts               # Legacy config loader (.env + config.json)
 │       ├── handlers/
 │       │   ├── commands.ts         # /start, /help, /agent, /reset, /status (pinned-aware)
-│       │   ├── message.ts          # Text handler factory + legacy export
+│       │   ├── message.ts          # Text handler factory + bare @mention handling + legacy export
 │       │   └── media.ts            # Photo/document handler factories + legacy exports
 │       ├── middleware/
 │       │   ├── auth.ts             # createAuthMiddleware(allowedUserIds?) + legacy export
@@ -256,7 +265,9 @@ src/
 └── services/                       # Shared across channels
     ├── enconvo-client.ts           # HTTP client (accepts optional url/timeout)
     ├── response-parser.ts          # Parses EnConvo response formats
-    └── session-manager.ts          # Session ID + agent selection per chat
+    ├── session-manager.ts          # Session ID + agent selection per chat
+    ├── workspace.ts                # Creates workspace dirs (IDENTITY.md, SOUL.md, AGENTS.md)
+    └── team-prompt.ts              # Reads workspace files → generates system prompt for EnConvo
 
 config.json                         # Legacy agent definitions + auth
 com.enconvo.telegram-adapter.plist  # macOS LaunchAgent
@@ -313,6 +324,70 @@ scripts/
 ```
 
 **Auto-migration:** Old flat configs (`channels.telegram: { token, ... }`) are automatically migrated to `channels.telegram.instances.default` on first load.
+
+---
+
+## Agent Roster Schema (`~/.enconvo_cli/agents.json`)
+
+```json
+{
+  "version": 1,
+  "team": "EnConvo AI Team",
+  "members": [
+    {
+      "id": "mavis",
+      "name": "Mavis",
+      "emoji": "👑",
+      "role": "Team Lead & Orchestrator",
+      "specialty": "Coordination, delegation, strategy",
+      "isLead": true,
+      "bindings": {
+        "agentPath": "chat_with_ai/chat",
+        "telegramBot": "@Encovo_Mavis_001_bot",
+        "instanceName": "mavis"
+      }
+    }
+  ]
+}
+```
+
+**Derived fields** (computed at load time, not stored):
+- `preferenceKey` — from `agentPath`: `chat_with_ai/chat` → `chat_with_ai|chat`
+- `workspacePath` — lead gets `~/.enconvo_cli/workspace/`, others get `~/.enconvo_cli/workspace-{id}/`
+
+### Workspace Directory Structure
+
+```
+~/.enconvo_cli/
+├── agents.json                    # Team roster
+├── config.json                    # Channel instances, EnConvo API config
+├── backups/                       # Preference backups before sync
+├── workspace/                     # Mavis (team lead, no suffix)
+│   ├── IDENTITY.md                # Name, role, emoji, team, intro
+│   ├── SOUL.md                    # Personality directives, specialist focus
+│   └── AGENTS.md                  # Team roster, delegation guide, group chat rules
+├── workspace-vivienne/
+│   ├── IDENTITY.md
+│   ├── SOUL.md
+│   └── AGENTS.md
+├── workspace-elena/
+│   └── ...
+└── workspace-timothy/
+    └── ...
+```
+
+### Prompt Sync Flow
+
+```
+enconvo agents sync [--dry-run] [--agent <id>]
+
+1. Read IDENTITY.md → extract name, role, intro
+2. Read SOUL.md → extract core truths, specialist focus, boundaries
+3. Read AGENTS.md → extract team roster, delegation guide, group chat rules
+4. Compress into system prompt with Jinja2 footer: {{ now }}, {{responseLanguage}}
+5. Backup existing preference file to ~/.enconvo_cli/backups/
+6. Write prompt field to ~/.config/enconvo/installed_preferences/{key}.json
+```
 
 ---
 
@@ -428,25 +503,66 @@ Files changed:
 - `src/services/session-manager.ts` — instance-aware session keys
 - `src/channels/telegram/adapter.ts` — pass instanceName as instanceId to createBot()
 
+### Phase 10 — Agent Team Awareness (commit `008644a`)
+
+OpenClaw-inspired agent team system. Bots now know about each other, have personalities, and can delegate.
+
+**Agent Roster (`agents.json`):**
+- CRUD store for team members with bindings to EnConvo agent paths, Telegram bots, and CLI instances
+- `AgentMember` interface: id, name, chineseName, emoji, role, specialty, isLead, bindings
+- Derived fields: `preferenceKey` and `workspacePath` computed at load time
+
+**Workspace System (ported from OpenClaw):**
+- Each agent gets `~/.enconvo_cli/workspace[-{id}]/` with three files:
+  - `IDENTITY.md` — name, role, emoji, team, telegram handle, intro
+  - `SOUL.md` — personality directives (from OpenClaw), specialist focus per agent
+  - `AGENTS.md` — full team roster, delegation guide, group chat rules
+- Lead agent (Mavis) gets `workspace/` (no suffix, mirrors OpenClaw's main workspace)
+- Ported from OpenClaw: Octavia→Mavis, `sessions_spawn`→`@mention` delegation, stripped image generation sections
+
+**Prompt Sync:**
+- `team-prompt.ts` reads workspace files, compresses into a single system prompt
+- Includes identity intro, soul directives, team roster, delegation guide, group chat rules
+- Jinja2 footer: `{{ now }}`, `{{responseLanguage}}`
+- Writes to `~/.config/enconvo/installed_preferences/{key}.json` (prompt field only)
+- Backs up existing preference files to `~/.enconvo_cli/backups/` before writing
+
+**6 CLI commands (`enconvo agents`):**
+- `list [--bindings] [--json]` — show team roster
+- `add --id <id> --name <name> ...` — add agent + create workspace
+- `delete <id> [--force]` — remove agent, optionally delete workspace
+- `set-identity <id> --name <n> --role <r> ...` — update identity + regenerate workspace
+- `sync [--dry-run] [--agent <id>]` — push prompts to EnConvo preferences
+- `bindings [--json]` — show agent↔channel binding map
+
+**Bare @mention fix:**
+- Previously, a bare `@BotUsername` (no text) was silently dropped — the mention got stripped and the empty string was discarded
+- Now: if text is empty after stripping, use the replied-to message's text, or fall back to a simple prompt
+- Prevents silent non-responses when users @mention a bot to get its attention
+
+**Initial roster (4 agents):**
+- 👑 Mavis (team lead) → `chat_with_ai/chat` → `@Encovo_Mavis_001_bot`
+- 💰 Vivienne (finance) → `custom_bot/BVxrKvityKoIpdJjS4p7` → `@Enconvo_Vivienne_Finance_bot`
+- ✍️ Elena (content) → `custom_bot/YJBEY3qHhFslKkMd6WIT` → `@Enconvo_Elena_Content_Dept_bot`
+- 💻 Timothy (dev) → `custom_bot/pOPhKXnP1CmNjCSQZ1mK` → `@EnConvo_Timothy_Dev_bot`
+
+Files: 13 changed, 806 insertions, 1 deletion.
+
 ---
 
 ## What's Next
 
 ### Near-Term: Agent Creation CLI Command
-- `enconvo agents create --name "Timothy Dev Dept" --prompt "..." --tools file_system,bash,web_search` — formalize the Phase 9 pattern into a proper CLI command
+- `enconvo agents create --name "New Agent" --prompt "..." --tools file_system,bash,web_search` — formalize the Phase 9 pattern into a proper CLI command
 - Auto-generate random ID, stateId, write both JSON files, verify via API
 
-### Near-Term: Agent Management
-- `enconvo agents list` — read `~/.config/enconvo/installed_commands/` to enumerate all agents/bots
+### Near-Term: Deeper Agent Inspection
 - `enconvo agents inspect --agent chat_with_ai/chat` — show command details, LLM, tools, prompt
-- `enconvo agents configure` — modify LLM routing, tool assignment, system prompt
-- **No API needed** — the full command registry lives on disk at `~/.config/enconvo/installed_commands/` (1,107 commands, read-only for store extensions) with user preferences in `installed_preferences/` (read-write)
-- Reference: `enconvo-agent-cli` skill documents the complete registry schema
+- `enconvo agents configure` — modify LLM routing, tool assignment, system prompt from CLI
 
-### Medium-Term: Agent Groups
-- Create Telegram groups as team compositions
-- Mavis as orchestrator/team lead
-- Inter-agent delegation (likely via EnConvo's own tools, not bot-to-bot Telegram messages)
+### Medium-Term: Inter-Agent Delegation
+- Mavis delegates tasks to specialists via EnConvo tools or Telegram @mentions
+- Cross-agent session forwarding (agent A spawns a task for agent B)
 
 ### Future: Additional Channels
 - Discord, Slack, etc. — each implements `ChannelAdapter`
@@ -462,7 +578,7 @@ Files changed:
 
 ## Known Limitations
 
-- **Agent discovery not yet wired into CLI** — The command registry at `~/.config/enconvo/installed_commands/` has all 1,107 commands on disk. `enconvo agents list` needs to be built to read it. (See `enconvo-agent-cli` skill for schema.)
+- **Agent roster is separate from EnConvo registry** — `enconvo agents list` shows the team roster (`agents.json`), not the full EnConvo command registry (1,107 commands). An `enconvo agents inspect` command to query the registry directly is planned.
 - **In-memory state** — Agent selection and session overrides live in JS Maps. Lost on restart.
 - **LaunchAgent scripts not yet multi-instance** — `install.sh`/`uninstall.sh` still reference the single `com.enconvo.telegram-adapter` plist. Need per-instance plist generation.
 - **Legacy code still in tree** — `src/index.ts`, `config.ts`, `config.json`, `.env` are no longer used in production (all bots run via multi-instance CLI) but remain because handler factory exports depend on `config.ts` at import time. Safe to remove in a dedicated refactor.
@@ -557,6 +673,37 @@ enconvo channels logs --channel telegram --name vivienne
 # Via npm/npx
 npm run cli -- channels list
 npx tsx src/cli.ts channels list
+```
+
+### Agent Team Management
+```bash
+# View team roster
+enconvo agents list
+enconvo agents list --bindings       # show channel mappings
+enconvo agents list --json           # machine-readable
+
+# Add an agent
+enconvo agents add --id mavis --name Mavis --role "Team Lead" --specialty "Coordination" \
+  --agent-path chat_with_ai/chat --telegram-bot @Mavis_bot --instance-name mavis \
+  --emoji 👑 --lead
+
+# Update identity
+enconvo agents set-identity mavis --name "Mavis 2.0" --role "Chief Orchestrator"
+
+# Show bindings (agent ↔ EnConvo ↔ Telegram)
+enconvo agents bindings
+
+# Preview prompts without writing
+enconvo agents sync --dry-run
+enconvo agents sync --dry-run --agent mavis
+
+# Push prompts to EnConvo preferences (backs up first)
+enconvo agents sync
+enconvo agents sync --agent vivienne   # single agent
+
+# Remove an agent
+enconvo agents delete timothy          # keeps workspace
+enconvo agents delete timothy --force  # deletes workspace too
 ```
 
 ### Production (LaunchAgent)
