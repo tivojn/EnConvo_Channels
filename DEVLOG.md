@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-01 (Phase 10.6)
+**Last updated:** 2026-03-01 (Phase 10.7)
 
 ---
 
@@ -772,10 +772,55 @@ We never isolated which one fixed it. Retesting proved: `read_file` + fresh sess
 - **Watch mode** → ensures KB changes propagate automatically
 
 **Workflow for team rule changes (fully automated):**
-1. Start `enconvo agents sync --watch --chat <chatId>` (leave running)
+1. Start `enconvo agents sync --watch --group main` (leave running)
 2. Edit `~/.enconvo_cli/kb/team-standards.md` — that's it. Auto-synced + auto-refreshed silently.
 
 Files: 3 changed, 66 insertions, 48 deletions.
+
+---
+
+### Phase 10.7 — Named Group Registry + Send --reset (commits `9116686`, `ebb5d1f`)
+
+**Problem:** Three commands (`channels send`, `agents refresh`, `agents sync --watch`) required typing the raw Telegram chat ID (`-5063546642`) every time. Also, `channels send` had no way to start a fresh conversation — the deterministic session ID (`telegram-{chatId}-{name}`) caused old context to bleed into new messages, making agents hallucinate about previous topics.
+
+**Changes:**
+
+1. **Named group registry** — groups stored in config under `channels.telegram.groups`:
+   ```bash
+   enconvo channels groups add --name main --chat-id "-5063546642" --label "EnConvo Agents Group"
+   enconvo channels groups          # list
+   enconvo channels groups remove --name main
+   ```
+
+2. **`--group` option on 3 commands** — resolves named group to chat ID via `resolveChatId()`. `--chat` remains for backwards compat:
+   ```bash
+   enconvo channels send --channel telegram --name vivienne --group main --message "test"
+   enconvo agents refresh --group main --reset --silent
+   enconvo agents sync --watch --group main
+   ```
+
+3. **`--reset` flag on `channels send`** — generates UUID-suffixed session ID for fresh conversations, matching the pattern already used by `agents refresh`:
+   ```bash
+   enconvo channels send --channel telegram --name elena --group main --reset --message "Hi"
+   ```
+
+4. **Team KB prompt weight fix** — `~/.enconvo_cli/kb/team-standards.md` image generation rules were written so emphatically (bold, repeated "off-limits", "applies to all team members" × 4) that agents over-indexed on them during regular conversation. Fixed by:
+   - Scoping: "These rules ONLY apply when generating images. Do not mention or reference them in regular conversation."
+   - Condensing 4 verbose rules into 2 concise lines
+
+**Implementation details:**
+- `GroupConfig` interface + 4 CRUD helpers in `src/config/store.ts` (follows existing instance CRUD pattern)
+- `resolveChatId(opts, channelName)` — shared resolver that accepts either `--chat` or `--group`, throws if neither provided
+- `src/commands/channels/groups.ts` — new subcommand with list (default), add, remove
+- `channels send` now imports `crypto` for UUID generation when `--reset` is used
+
+**Key debugging insight:** During testing, agents responded to "what's 2+2?" by volunteering color restriction rules from team KB. Two root causes identified:
+1. **Stale sessions** — old conversation context bleeding in (fixed by `--reset`)
+2. **Prompt weight** — emphatic KB rules dominated the system prompt, causing agents to reference them unprompted (fixed by scoping and condensing)
+
+Vivienne responded cleanly after both fixes. Elena and Timothy needed the prompt weight fix specifically — they were interpreting a simple "test" as a compliance check and volunteering the most prominent rules.
+
+Files: 7 changed (6 in repo + 1 KB file outside repo), 181 insertions, 23 deletions.
 
 ---
 
@@ -894,9 +939,15 @@ enconvo channels add --channel telegram --name mavis --token <token> --agent cha
 enconvo channels login --channel telegram --name vivienne -f   # foreground
 enconvo channels logout --channel telegram --name vivienne
 
+# Manage named groups (no more raw chat IDs)
+enconvo channels groups                                    # list
+enconvo channels groups add --name main --chat-id "-5063546642" --label "EnConvo Agents Group"
+enconvo channels groups remove --name main
+
 # Send a message through a bot (response appears in Telegram)
-enconvo channels send --channel telegram --name vivienne --chat "-5063546642" --message "hello"
-enconvo channels send --channel telegram --name timothy --chat "-5063546642" --message "what's your role" --json
+enconvo channels send --channel telegram --name vivienne --group main --message "hello"
+enconvo channels send --channel telegram --name vivienne --group main --reset --message "fresh convo"
+enconvo channels send --channel telegram --name timothy --chat "-5063546642" --message "raw ID still works"
 
 # Monitor
 enconvo channels status --channel telegram
@@ -935,8 +986,9 @@ enconvo agents sync
 enconvo agents sync --agent vivienne   # single agent
 
 # Refresh agents (re-read workspace files)
-enconvo agents refresh --chat "-5063546642"
-enconvo agents refresh --chat "-5063546642" --agent mavis --reset
+enconvo agents refresh --group main --reset --silent
+enconvo agents refresh --group main --agent mavis --reset
+enconvo agents refresh --chat "-5063546642"              # raw ID still works
 
 # Health check (agent files, version, API)
 enconvo agents check
