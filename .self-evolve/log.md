@@ -267,3 +267,12 @@
   - 13 tests: config dir/file missing, legacy v1, missing token, empty allowedUserIds, disabled instance skip
   - Tests: duplicate agent paths, no lead, multiple leads, missing workspace, roster parse error, no agents file
   - Refactor separates pure validation from side effects (fetch, console, process.exit)
+
+## [2026-03-02 07:48] Self-Evolve Round 29: Extract shared file-types utility + dedup
+- **Status:** success
+- **Tests:** 239/239 passing (25 suites, +5 new tests)
+- **Notes:**
+  - Created `src/utils/file-types.ts` with shared `IMAGE_EXTS` and `isImageFile()`
+  - Removed duplicate IMAGE_EXTS constant from 5 files: telegram handlers (2), channels send, message send, response-parser
+  - Inlined trivial `extractFlowParamsPaths()` wrapper in response-parser
+  - Added file-types test suite (5 tests)

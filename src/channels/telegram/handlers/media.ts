@@ -9,8 +9,7 @@ import { sendParsedResponse, ChannelIO } from '../../../services/handler-core';
 import { startTypingIndicator } from '../middleware/typing';
 import { ensureMediaDir } from '../../../utils/media-dir';
 import { TELEGRAM_MAX_LENGTH } from '../../../utils/message-splitter';
-
-const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+import { isImageFile } from '../../../utils/file-types';
 
 function createTelegramIO(ctx: Context): ChannelIO {
   return {
@@ -23,8 +22,7 @@ function createTelegramIO(ctx: Context): ChannelIO {
       }
     },
     sendFile: async (filePath: string) => {
-      const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-      if (IMAGE_EXTS.has(ext)) {
+      if (isImageFile(filePath)) {
         await ctx.replyWithPhoto(new InputFile(filePath));
       } else {
         await ctx.replyWithDocument(new InputFile(filePath));

@@ -94,9 +94,8 @@ export function registerMessageSend(parent: Command): void {
             }
             for (const filePath of parsed.filePaths) {
               if (!fs.existsSync(filePath)) continue;
-              const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-              const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
-              if (IMAGE_EXTS.has(ext)) {
+              const { isImageFile } = await import('../../utils/file-types');
+              if (isImageFile(filePath)) {
                 await bot.api.sendPhoto(opts.target, new InputFile(filePath));
               } else {
                 await bot.api.sendDocument(opts.target, new InputFile(filePath));

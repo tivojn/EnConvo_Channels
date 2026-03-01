@@ -6,8 +6,7 @@ import { getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse, ParsedResponse } from '../../services/response-parser';
 import { loadGlobalConfig } from '../../config/store';
-
-const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+import { isImageFile } from '../../utils/file-types';
 
 async function deliverTelegram(token: string, chatId: string, parsed: ParsedResponse): Promise<void> {
   const bot = new Bot(token);
@@ -22,8 +21,7 @@ async function deliverTelegram(token: string, chatId: string, parsed: ParsedResp
 
   for (const filePath of parsed.filePaths) {
     if (!fs.existsSync(filePath)) continue;
-    const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-    if (IMAGE_EXTS.has(ext)) {
+    if (isImageFile(filePath)) {
       await bot.api.sendPhoto(chatId, new InputFile(filePath));
     } else {
       await bot.api.sendDocument(chatId, new InputFile(filePath));

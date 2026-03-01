@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { EnConvoResponse } from './enconvo-client';
+import { IMAGE_EXTS } from '../utils/file-types';
 
 export interface DelegationDirective {
   targetAgentId: string;
@@ -12,9 +13,8 @@ export interface ParsedResponse {
   delegations: DelegationDirective[];
 }
 
-const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
 const ALL_FILE_EXTENSIONS = new Set([
-  ...IMAGE_EXTENSIONS,
+  ...IMAGE_EXTS,
   '.txt', '.pdf', '.doc', '.docx', '.csv', '.json', '.xml',
   '.mp3', '.mp4', '.wav', '.mov', '.zip', '.tar', '.gz',
 ]);
@@ -49,11 +49,6 @@ function extractDeliverableFiles(flowParams: string): string[] {
   } catch {
     return [];
   }
-}
-
-// Extract file paths from any flow_step's flowParams
-function extractFlowParamsPaths(flowParams: string): string[] {
-  return extractAbsolutePaths(flowParams);
 }
 
 /**
@@ -136,7 +131,7 @@ export function parseResponse(
           filePaths.push(...extractDeliverableFiles(item.flowParams));
         }
         // Also scan any flow_step params for file paths (e.g. file_system--read_file)
-        filePaths.push(...extractFlowParamsPaths(item.flowParams));
+        filePaths.push(...extractAbsolutePaths(item.flowParams));
       }
     }
   }

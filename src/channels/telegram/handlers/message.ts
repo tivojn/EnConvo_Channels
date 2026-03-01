@@ -4,8 +4,7 @@ import { getSessionId, getAgent } from '../../../services/session-manager';
 import { handleMessage, buildRosterContext, ChannelIO } from '../../../services/handler-core';
 import { startTypingIndicator } from '../middleware/typing';
 import { TELEGRAM_MAX_LENGTH } from '../../../utils/message-splitter';
-
-const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']);
+import { isImageFile } from '../../../utils/file-types';
 
 function createTelegramIO(ctx: Context): ChannelIO {
   return {
@@ -54,8 +53,7 @@ export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: 
 export const handleTextMessage = createTextMessageHandler();
 
 async function sendFile(ctx: Context, filePath: string): Promise<void> {
-  const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-  if (IMAGE_EXTS.has(ext)) {
+  if (isImageFile(filePath)) {
     await ctx.replyWithPhoto(new InputFile(filePath));
   } else {
     await ctx.replyWithDocument(new InputFile(filePath));
