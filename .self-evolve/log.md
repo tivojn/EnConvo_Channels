@@ -104,3 +104,12 @@
   - Added channel registry test suite (11 tests: adapter lookup, capabilities, interface methods)
   - Added config paths test suite (9 tests: verify all path constants)
   - Updated CLI integration test for broadcast subcommand
+
+## [2026-03-02 07:05] Self-Evolve Round 12: info command + expanded CLI tests
+- **Status:** success
+- **Tests:** 116/116 passing (13 suites)
+- **Notes:**
+  - Added `enconvo info` — unified system info (CLI version, EnConvo app version, adapters, instances, agents, platform)
+  - Expanded CLI integration tests: verify ALL 11 channels + 10 agents subcommands by name and count
+  - Smoke-tested: info shows real data (8 instances, 4 agents, EnConvo 2.2.23)
+  - CLI now has 10 top-level commands + 4 command groups

@@ -9,6 +9,7 @@ import { registerDoctorCommand } from '../commands/doctor';
 import { registerHealthCommand } from '../commands/health';
 import { registerSessionsCommand } from '../commands/sessions';
 import { registerLogsCommand } from '../commands/logs';
+import { registerInfoCommand } from '../commands/info';
 
 function getCommandNames(program: Command): string[] {
   return program.commands.map((c) => c.name());
@@ -36,6 +37,7 @@ describe('CLI command registration', () => {
     registerHealthCommand(program);
     registerSessionsCommand(program);
     registerLogsCommand(program);
+    registerInfoCommand(program);
 
     const names = getCommandNames(program);
     expect(names).toContain('channels');
@@ -47,35 +49,31 @@ describe('CLI command registration', () => {
     expect(names).toContain('health');
     expect(names).toContain('sessions');
     expect(names).toContain('logs');
+    expect(names).toContain('info');
   });
 
-  it('registers channels subcommands', () => {
+  it('registers all channels subcommands', () => {
     program = new Command();
     registerChannelsCommands(program);
 
     const subs = getSubcommandNames(program, 'channels');
-    expect(subs).toContain('add');
-    expect(subs).toContain('remove');
-    expect(subs).toContain('list');
-    expect(subs).toContain('login');
-    expect(subs).toContain('logout');
-    expect(subs).toContain('status');
-    expect(subs).toContain('send');
+    const expected = ['list', 'status', 'add', 'remove', 'login', 'logout', 'capabilities', 'resolve', 'logs', 'send', 'groups'];
+    for (const cmd of expected) {
+      expect(subs).toContain(cmd);
+    }
+    expect(subs.length).toBe(expected.length);
   });
 
-  it('registers agents subcommands', () => {
+  it('registers all agents subcommands', () => {
     program = new Command();
     registerAgentsCommands(program);
 
     const subs = getSubcommandNames(program, 'agents');
-    expect(subs).toContain('list');
-    expect(subs).toContain('add');
-    expect(subs).toContain('delete');
-    expect(subs).toContain('set-identity');
-    expect(subs).toContain('sync');
-    expect(subs).toContain('bindings');
-    expect(subs).toContain('bind');
-    expect(subs).toContain('unbind');
+    const expected = ['list', 'add', 'delete', 'set-identity', 'sync', 'bindings', 'bind', 'unbind', 'refresh', 'check'];
+    for (const cmd of expected) {
+      expect(subs).toContain(cmd);
+    }
+    expect(subs.length).toBe(expected.length);
   });
 
   it('registers config subcommands', () => {
