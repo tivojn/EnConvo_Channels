@@ -17,8 +17,8 @@ export interface EnConvoResponse {
   messages: EnConvoMessage[];
 }
 
-export async function callEnConvo(inputText: string, sessionId: string): Promise<EnConvoResponse> {
-  const url = `${config.enconvo.url}/command/call/chat_with_ai/chat`;
+export async function callEnConvo(inputText: string, sessionId: string, agentPath: string = 'chat_with_ai/chat'): Promise<EnConvoResponse> {
+  const url = `${config.enconvo.url}/command/call/${agentPath}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.enconvo.timeoutMs);
 

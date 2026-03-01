@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { callEnConvo } from '../services/enconvo-client';
 import { parseResponse } from '../services/response-parser';
-import { getSessionId } from '../services/session-manager';
+import { getSessionId, getAgent } from '../services/session-manager';
 import { splitMessage } from '../utils/message-splitter';
 import { startTypingIndicator } from '../middleware/typing';
 
@@ -44,8 +44,9 @@ export async function handlePhoto(ctx: Context): Promise<void> {
     const localPath = await downloadFile(ctx, photo.file_id, '.jpg');
     const inputText = `${caption}\n\n[Attached image: ${localPath}]`;
     const sessionId = getSessionId(chatId);
+    const agent = getAgent(chatId);
 
-    const response = await callEnConvo(inputText, sessionId);
+    const response = await callEnConvo(inputText, sessionId, agent.path);
     typing.stop();
 
     const parsed = parseResponse(response);
@@ -71,8 +72,9 @@ export async function handleDocument(ctx: Context): Promise<void> {
     const localPath = await downloadFile(ctx, doc.file_id, ext);
     const inputText = `${caption}\n\n[Attached file: ${localPath}]`;
     const sessionId = getSessionId(chatId);
+    const agent = getAgent(chatId);
 
-    const response = await callEnConvo(inputText, sessionId);
+    const response = await callEnConvo(inputText, sessionId, agent.path);
     typing.stop();
 
     const parsed = parseResponse(response);
