@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-01 (Phase 11)
+**Last updated:** 2026-03-01 (Phase 11.1)
 
 ---
 
@@ -867,6 +867,28 @@ Files: 7 changed (6 in repo + 1 KB file outside repo), 181 insertions, 23 deleti
 **Verification:** `npx tsc --noEmit` passes clean. `enconvo channels list` shows Discord as available channel with "none configured" instances.
 
 Files: 13 changed, 916 insertions, 7 deletions.
+
+### Phase 11.1 — `channels send` for Discord (commit `294098a`)
+
+**Problem:** The `channels send` command was hardcoded to Telegram — it used Grammy's `Bot` class and `bot.api.sendMessage()` directly. Running `enconvo channels send --channel discord ...` would crash.
+
+**Changes:**
+
+1. **Extracted delivery into channel-specific functions** — `deliverTelegram()` and `deliverDiscord()` with a `switch` on `--channel`:
+   - `deliverTelegram()` — Grammy `bot.api.sendMessage()` with Markdown fallback, `sendPhoto()`/`sendDocument()` for files
+   - `deliverDiscord()` — Discord REST API (`POST /channels/{id}/messages`) with message splitting (2000 chars), `FormData` file uploads
+
+2. **Channel-aware session IDs** — changed from hardcoded `telegram-{chatId}-{name}` to `{channel}-{chatId}-{name}`. Discord sessions now use `discord-` prefix, Telegram unchanged.
+
+3. **Tested all 4 Discord bots** — Mavis, Elena, Timothy, Vivienne all responded via EnConvo and delivered to `#general` in the test server.
+
+**Usage (same pattern, different `--channel`):**
+```bash
+enconvo channels send --channel discord --name mavis-discord --chat "1477609601330577500" --message "hello"
+enconvo channels send --channel discord --name elena-discord --chat "1477609601330577500" --reset --message "Hi Elena"
+```
+
+Files: 1 changed, 79 insertions, 25 deletions.
 
 ---
 
