@@ -13,6 +13,7 @@ import { registerInfoCommand } from '../commands/info';
 import { registerConfigureCommand } from '../commands/configure';
 import { registerExportCommand, registerImportCommand } from '../commands/export-import';
 import { registerVersionCommand } from '../commands/version';
+import { registerResetCommand } from '../commands/reset';
 
 function getCommandNames(program: Command): string[] {
   return program.commands.map((c) => c.name());
@@ -45,12 +46,13 @@ describe('CLI command registration', () => {
     registerExportCommand(program);
     registerImportCommand(program);
     registerVersionCommand(program);
+    registerResetCommand(program);
 
     const names = getCommandNames(program);
     const expected = [
       'channels', 'agents', 'config', 'message',
       'status', 'doctor', 'health', 'sessions',
-      'logs', 'info', 'configure', 'export', 'import', 'version',
+      'logs', 'info', 'configure', 'export', 'import', 'version', 'reset',
     ];
     for (const cmd of expected) {
       expect(names).toContain(cmd);

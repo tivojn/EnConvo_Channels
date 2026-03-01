@@ -206,3 +206,11 @@
   - Added `enconvo version` command (CLI version, EnConvo app version, Node, platform)
   - Added export/import integration tests (4 tests: export bundle, strip-tokens, replace import, merge import)
   - CLI now has 14 top-level commands + 4 command groups
+
+## [2026-03-02 07:33] Self-Evolve Round 22: reset command
+- **Status:** success
+- **Tests:** 193/193 passing (18 suites)
+- **Notes:**
+  - Added `enconvo reset` command (--channel, --agents, --all)
+  - Auto-backup before reset to `~/.enconvo_cli/backups/`
+  - CLI now has 15 top-level commands + 4 command groups
