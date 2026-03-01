@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-01 (Phase 10.4)
+**Last updated:** 2026-03-01 (Phase 10.5)
 
 ---
 
@@ -214,7 +214,7 @@ Users configure these in EnConvo's GUI. `enconvo_cli` reads them to understand w
 
 ---
 
-## Current File Structure (Phase 10.4)
+## Current File Structure (Phase 10.5)
 
 ```
 src/
@@ -718,6 +718,33 @@ MANDATORY TEAM RULES (enforced — no exceptions):
 **Test result:** After injection, all 3 agents (Timothy, Vivienne, Elena) correctly refused the emerald selfie request. Elena even self-corrected: "I just broke it earlier — my bad. That emerald selfie shouldn't have happened. Won't repeat."
 
 Files: 1 changed, 34 insertions, 1 deletion.
+
+### Phase 10.5 — Auto-Sync Watch Mode (commit `4d9130d`)
+
+**Problem:** After adding a team rule to `~/.enconvo_cli/kb/team-standards.md`, the user had to manually run `enconvo agents sync` to inject it into agent prompts. Without the manual sync, agents kept using the old prompt and ignored the new rule.
+
+**Fix:** Added `--watch` flag to the sync command:
+
+```bash
+enconvo agents sync --watch              # watch + auto-sync all agents
+enconvo agents sync --watch --agent mavis # watch + auto-sync one agent
+```
+
+- Uses `fs.watch()` on `~/.enconvo_cli/kb/` to monitor `.md` file changes
+- 300ms debounce to handle editor save patterns (write + rename)
+- Auto-syncs all agent prompts on every change
+- Reloads the agent roster on each trigger (picks up roster changes too)
+- Ignores non-`.md` files and hidden files
+- Runs until Ctrl+C
+
+**Updated workflow for team rule changes:**
+1. Start `enconvo agents sync --watch` (leave running)
+2. Edit `~/.enconvo_cli/kb/team-standards.md` — auto-synced within 300ms
+3. `enconvo agents refresh --chat <id> --reset` — active sessions pick up new prompt
+
+Step 2 is now automatic. Only step 3 remains manual (intentionally — refreshing active sessions has side effects and should be deliberate).
+
+Files: 1 changed, 121 insertions, 53 deletions.
 
 ---
 
