@@ -120,6 +120,23 @@ describe('parseResponse', () => {
     expect(parsed.text).not.toContain('thinkingContent');
   });
 
+  it('strips thinking JSON with nested braces in content', () => {
+    const thinkingJson = '{"type":"thinking","id":"x","thinkingContent":"check {nested} braces and {more {deep} nesting}","thinkingTime":100,"thinkingStatus":"success","signature":"base64"}';
+    const response: EnConvoResponse = {
+      messages: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: `${thinkingJson} The answer.` },
+          ],
+        },
+      ],
+    };
+    const parsed = parseResponse(response);
+    expect(parsed.text).toBe('The answer.');
+    expect(parsed.text).not.toContain('nested');
+  });
+
   it('extracts image files from flowResults', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     const response: EnConvoResponse = {

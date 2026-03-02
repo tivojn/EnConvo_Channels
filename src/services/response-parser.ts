@@ -4,11 +4,33 @@ import { EnConvoResponse } from './enconvo-client';
 /**
  * Strip serialized thinking JSON blocks from text content.
  * Some models embed {"type":"thinking",...} as text strings instead of typed content items.
+ * Uses brace-depth counting to handle nested braces in content.
  */
 function stripThinkingJson(text: string): string {
   if (!text.includes('"type":"thinking"')) return text;
-  // Match JSON objects containing type:thinking — they can be very large with signatures
-  return text.replace(/\{[^{}]*"type"\s*:\s*"thinking"[^}]*(?:\{[^}]*\}[^}]*)*\}/g, '').trim();
+
+  let result = text;
+  let searchFrom = 0;
+  while (true) {
+    const marker = result.indexOf('"type":"thinking"', searchFrom);
+    if (marker === -1) break;
+    // Walk backwards to find the opening brace
+    let start = marker - 1;
+    while (start >= 0 && result[start] !== '{') start--;
+    if (start < 0) { searchFrom = marker + 1; continue; }
+    // Walk forwards counting braces to find the matching close
+    let depth = 0;
+    let end = start;
+    for (let i = start; i < result.length; i++) {
+      if (result[i] === '{') depth++;
+      else if (result[i] === '}') depth--;
+      if (depth === 0) { end = i + 1; break; }
+    }
+    if (depth !== 0) { searchFrom = marker + 1; continue; }
+    result = result.slice(0, start) + result.slice(end);
+    searchFrom = start;
+  }
+  return result.trim();
 }
 
 export interface DelegationDirective {
