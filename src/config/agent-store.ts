@@ -46,7 +46,7 @@ const DEFAULT_ROSTER: AgentsRoster = {
   members: [],
 };
 
-function derivePreferenceKey(agentPath: string): string {
+export function derivePreferenceKey(agentPath: string): string {
   // agentPath: "chat_with_ai/chat" → "chat_with_ai|chat"
   // agentPath: "custom_bot/BVxrKvityKoIpdJjS4p7" → "custom_bot|BVxrKvityKoIpdJjS4p7"
   return agentPath.replace('/', '|');

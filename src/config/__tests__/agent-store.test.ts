@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { derivePreferenceKey } from '../agent-store';
 
 // We test the pure functions by importing them
 // The store relies on filesystem, so we test with temp dirs
@@ -19,32 +20,20 @@ describe('agent-store', () => {
 
   describe('derivePreferenceKey', () => {
     it('converts agent path slash to pipe', () => {
-      const agentsPath = path.join(tmpDir, 'agents.json');
-      const roster = {
-        version: 1,
-        team: 'Test Team',
-        members: [
-          {
-            id: 'test',
-            name: 'Test',
-            emoji: '🧪',
-            role: 'Tester',
-            specialty: 'Testing',
-            isLead: false,
-            bindings: {
-              agentPath: 'custom_bot/abc123',
-              telegramBot: '@TestBot',
-              instanceName: 'test',
-            },
-          },
-        ],
-      };
-      fs.writeFileSync(agentsPath, JSON.stringify(roster, null, 2));
+      expect(derivePreferenceKey('custom_bot/abc123')).toBe('custom_bot|abc123');
+    });
 
-      const raw = JSON.parse(fs.readFileSync(agentsPath, 'utf-8'));
-      const agentPath = raw.members[0].bindings.agentPath;
-      const expectedKey = agentPath.replace('/', '|');
-      expect(expectedKey).toBe('custom_bot|abc123');
+    it('converts chat_with_ai/chat', () => {
+      expect(derivePreferenceKey('chat_with_ai/chat')).toBe('chat_with_ai|chat');
+    });
+
+    it('handles single segment with no slash', () => {
+      expect(derivePreferenceKey('simple')).toBe('simple');
+    });
+
+    it('only replaces first slash', () => {
+      // agentPaths should only have one slash, but test behavior
+      expect(derivePreferenceKey('a/b/c')).toBe('a|b/c');
     });
   });
 
