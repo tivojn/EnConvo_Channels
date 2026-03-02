@@ -3,6 +3,7 @@ import { loadAgentsRoster } from '../../config/agent-store';
 import { loadGlobalConfig } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
+import { outputError } from '../../utils/command-output';
 
 interface AgentTestResult {
   id: string;
@@ -30,22 +31,14 @@ export function registerTest(parent: Command): void {
       if (opts.agent) {
         const agent = roster.members.find(m => m.id === opts.agent);
         if (!agent) {
-          if (opts.json) {
-            console.log(JSON.stringify({ error: `Agent "${opts.agent}" not found` }));
-          } else {
-            console.error(`Agent "${opts.agent}" not found.`);
-          }
+          outputError(opts, `Agent "${opts.agent}" not found`);
           process.exit(1);
         }
         targets = [agent];
       }
 
       if (targets.length === 0) {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: 'No agents configured' }));
-        } else {
-          console.error('No agents configured. Run "enconvo agents add" first.');
-        }
+        outputError(opts, 'No agents configured. Run "enconvo agents add" first.');
         process.exit(1);
       }
 

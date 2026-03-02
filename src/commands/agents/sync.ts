@@ -8,6 +8,7 @@ import { createWorkspace } from '../../services/workspace';
 import { loadGlobalConfig, getChannelInstance, resolveChatId } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { ENCONVO_PREFERENCES_DIR, BACKUPS_DIR, TEAM_KB_DIR } from '../../config/paths';
+import { outputError } from '../../utils/command-output';
 
 const SILENT_REFRESH_MESSAGE = `Re-read all workspace files and team KB now: IDENTITY.md, SOUL.md, AGENTS.md, and ${TEAM_KB_DIR}/. Do not announce or summarize what you read. Just confirm with "OK".`;
 
@@ -128,11 +129,7 @@ export function registerSync(parent: Command): void {
       const roster = loadAgentsRoster();
 
       if (roster.members.length === 0) {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: 'No agents configured' }));
-        } else {
-          console.error('No agents configured. Run "enconvo agents add" first.');
-        }
+        outputError(opts, 'No agents configured. Run "enconvo agents add" first.');
         process.exit(1);
       }
 
@@ -140,12 +137,7 @@ export function registerSync(parent: Command): void {
       if (opts.agent) {
         const agent = roster.members.find((m) => m.id === opts.agent);
         if (!agent) {
-          const msg = `Agent "${opts.agent}" not found`;
-          if (opts.json) {
-            console.log(JSON.stringify({ error: msg }));
-          } else {
-            console.error(msg);
-          }
+          outputError(opts, `Agent "${opts.agent}" not found`);
           process.exit(1);
         }
         targets = [agent];
@@ -165,7 +157,7 @@ export function registerSync(parent: Command): void {
       // Watch mode
       if (opts.watch) {
         if (opts.dryRun) {
-          console.error('Cannot use --watch with --dry-run');
+          outputError(opts, 'Cannot use --watch with --dry-run');
           process.exit(1);
         }
 
@@ -175,7 +167,7 @@ export function registerSync(parent: Command): void {
           try {
             watchChatId = resolveChatId(opts, 'telegram');
           } catch (err: unknown) {
-            console.error(err instanceof Error ? err.message : String(err));
+            outputError(opts, err instanceof Error ? err.message : String(err));
             process.exit(1);
           }
         }

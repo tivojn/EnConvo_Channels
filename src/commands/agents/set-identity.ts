@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { getAgent, updateAgent, loadAgentsRoster } from '../../config/agent-store';
 import { createWorkspace } from '../../services/workspace';
+import { outputError } from '../../utils/command-output';
 
 export function registerSetIdentity(parent: Command): void {
   parent
@@ -15,12 +16,7 @@ export function registerSetIdentity(parent: Command): void {
     .action((id: string, opts) => {
       const existing = getAgent(id);
       if (!existing) {
-        const msg = `Agent "${id}" not found`;
-        if (opts.json) {
-          console.log(JSON.stringify({ error: msg }));
-        } else {
-          console.error(msg);
-        }
+        outputError(opts, `Agent "${id}" not found`);
         process.exit(1);
       }
 
@@ -32,11 +28,7 @@ export function registerSetIdentity(parent: Command): void {
       if (opts.emoji) updates.emoji = opts.emoji;
 
       if (Object.keys(updates).length === 0) {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: 'No updates provided' }));
-        } else {
-          console.error('No updates provided. Use --name, --role, --specialty, --emoji, or --chinese-name.');
-        }
+        outputError(opts, 'No updates provided. Use --name, --role, --specialty, --emoji, or --chinese-name.');
         process.exit(1);
       }
 
