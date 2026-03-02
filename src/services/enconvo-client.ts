@@ -8,6 +8,13 @@ interface EnConvoContentItem {
   flowName?: string;
   flowParams?: string;
   flowRunStatus?: string;
+  flowResults?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+      image_url?: { url?: string };
+    }>;
+  }>;
 }
 
 interface EnConvoMessage {

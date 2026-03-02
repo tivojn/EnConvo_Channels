@@ -1,4 +1,4 @@
-import { callEnConvo } from './enconvo-client';
+import { callEnConvo, CallEnConvoOptions } from './enconvo-client';
 import { parseResponse, DelegationDirective, ParsedResponse } from './response-parser';
 import { loadAgentsRoster } from '../config/agent-store';
 
@@ -6,6 +6,7 @@ export interface RoutingContext {
   chatId: string;
   channel: string;
   instanceId?: string;
+  apiOptions?: CallEnConvoOptions;
 }
 
 /**
@@ -25,14 +26,14 @@ export async function routeToAgent(
     return null;
   }
 
-  // Build a shared session so the target agent has context
-  const sessionId = `${context.channel}-${context.chatId}-team`;
+  // Per-agent session to isolate conversation history
+  const sessionId = `${context.channel}-${context.chatId}-${delegation.targetAgentId}`;
 
   // Prepend context so the target agent knows who's asking
   const message = `[From ${fromAgentName}]: ${delegation.message}`;
 
   try {
-    const response = await callEnConvo(message, sessionId, target.bindings.agentPath);
+    const response = await callEnConvo(message, sessionId, target.bindings.agentPath, context.apiOptions);
     return parseResponse(response);
   } catch (err) {
     console.error(`[agent-router] Failed to route to ${target.name}:`, err);

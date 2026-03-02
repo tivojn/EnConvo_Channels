@@ -56,11 +56,12 @@ describe('routeToAgent', () => {
     expect(result).not.toBeNull();
     expect(result!.text).toBe('Here is the content you requested.');
 
-    // Verify callEnConvo was called with correct args
+    // Verify callEnConvo was called with correct args (per-agent session)
     expect(mockedCallEnConvo).toHaveBeenCalledWith(
       '[From Mavis]: Write a tagline.',
-      'telegram-12345-team',
+      'telegram-12345-elena',
       'custom_bot/elena123',
+      undefined,
     );
   });
 
@@ -87,7 +88,25 @@ describe('routeToAgent', () => {
     expect(result).toBeNull();
   });
 
-  it('uses shared team session ID', async () => {
+  it('forwards apiOptions to callEnConvo', async () => {
+    mockedCallEnConvo.mockResolvedValue({ result: 'ok' });
+
+    const apiOptions = { url: 'http://custom:9999', timeoutMs: 5000 };
+    await routeToAgent(
+      'Mavis',
+      { targetAgentId: 'elena', message: 'Hello' },
+      { chatId: '12345', channel: 'telegram', apiOptions },
+    );
+
+    expect(mockedCallEnConvo).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      'custom_bot/elena123',
+      apiOptions,
+    );
+  });
+
+  it('uses per-agent session ID for isolation', async () => {
     mockedCallEnConvo.mockResolvedValue({ result: 'ok' });
 
     await routeToAgent(
@@ -96,11 +115,12 @@ describe('routeToAgent', () => {
       { chatId: 'abc', channel: 'discord', instanceId: 'mavis-discord' },
     );
 
-    // Session should be channel-chatId-team
+    // Session should be channel-chatId-targetAgentId (not -team)
     expect(mockedCallEnConvo).toHaveBeenCalledWith(
       expect.any(String),
-      'discord-abc-team',
+      'discord-abc-elena',
       expect.any(String),
+      undefined,
     );
   });
 });

@@ -2,7 +2,7 @@
 # bash has Full Disk Access, so it can read from ~/Downloads.
 # node does NOT, so we rsync the project to a non-protected location first.
 
-SOURCE="/Users/zanearcher/Downloads/vibe-coding/EnConvo_Channels"
+SOURCE="/Users/zanearcher/Downloads/vibe-coding/enconvo_cli"
 MIRROR="$HOME/.local/share/enconvo-telegram-adapter"
 
 mkdir -p "$MIRROR"
@@ -14,4 +14,10 @@ rsync -a --delete \
   "$SOURCE/" "$MIRROR/"
 
 cd "$MIRROR"
-exec /opt/homebrew/bin/node node_modules/.bin/tsx src/index.ts
+
+# If CLI args provided, run CLI entrypoint; otherwise legacy bot mode
+if [ $# -gt 0 ]; then
+  exec /opt/homebrew/bin/node node_modules/.bin/tsx src/cli.ts "$@"
+else
+  exec /opt/homebrew/bin/node node_modules/.bin/tsx src/index.ts
+fi

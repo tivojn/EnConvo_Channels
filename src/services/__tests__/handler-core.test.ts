@@ -192,11 +192,45 @@ describe('handleMessage', () => {
 
     expect(routeToAgent).toHaveBeenCalledWith(
       'Mavis',
-      { targetAgentId: 'elena', message: 'Help with content' },
-      { chatId: '123', channel: 'telegram', instanceId: undefined },
+      { targetAgentId: 'elena', message: '[Original question: hello]\n\nHelp with content' },
+      { chatId: '123', channel: 'telegram', instanceId: undefined, apiOptions: undefined },
     );
     // Should have sent main response + delegation header + delegation text
     expect(io.sendText).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends failure message when delegation returns null', async () => {
+    const io = createMockIO();
+    vi.mocked(callEnConvo).mockResolvedValue({});
+    vi.mocked(parseResponse).mockReturnValue({
+      text: 'Main response',
+      filePaths: [],
+      delegations: [{ targetAgentId: 'elena', message: 'Help with content' }],
+    });
+    vi.mocked(routeToAgent).mockResolvedValue(null);
+
+    const roster = createRoster({
+      currentAgent: {
+        id: 'mavis', name: 'Mavis', emoji: '👑', role: 'Lead',
+        specialty: 'General', isLead: true,
+        preferenceKey: 'chat_with_ai|chat',
+        workspacePath: '/tmp/test',
+        bindings: { agentPath: 'chat_with_ai/chat', telegramBot: '@Bot', instanceName: 'mavis' },
+      },
+      members: [
+        {
+          id: 'elena', name: 'Elena', emoji: '✍️', role: 'Content',
+          specialty: 'Content', isLead: false,
+          preferenceKey: 'custom_bot|abc',
+          workspacePath: '/tmp/test2',
+          bindings: { agentPath: 'custom_bot/abc', telegramBot: '@ElenaBot', instanceName: 'elena' },
+        },
+      ],
+    });
+
+    await handleMessage(io, createCtx(), roster);
+
+    expect(io.sendText).toHaveBeenCalledWith('(Could not reach ✍️ Elena — delegation failed)');
   });
 
   it('skips delegations when no currentAgent', async () => {

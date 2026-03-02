@@ -97,19 +97,26 @@ export async function handleMessage(
     // Handle delegations
     if (parsed.delegations.length > 0 && roster.currentAgent) {
       for (const delegation of parsed.delegations) {
+        // Enrich delegation with original user message for context
+        const enrichedDelegation = {
+          ...delegation,
+          message: `[Original question: ${ctx.text}]\n\n${delegation.message}`,
+        };
         const delegatedResponse = await routeToAgent(
           roster.currentAgent.name,
-          delegation,
-          { chatId: ctx.chatId, channel: ctx.channel, instanceId: ctx.instanceId },
+          enrichedDelegation,
+          { chatId: ctx.chatId, channel: ctx.channel, instanceId: ctx.instanceId, apiOptions: ctx.apiOptions },
         );
+        const target = roster.members.find(m => m.id === delegation.targetAgentId);
+        const label = target ? `${target.emoji} ${target.name}` : delegation.targetAgentId;
         if (delegatedResponse?.text) {
-          const target = roster.members.find(m => m.id === delegation.targetAgentId);
-          const label = target ? `${target.emoji} ${target.name}` : delegation.targetAgentId;
           const header = `[${label}]:`;
           const chunks = splitMessageShared(`${header}\n${delegatedResponse.text}`, io.maxMessageLength);
           for (const chunk of chunks) {
             await io.sendText(chunk);
           }
+        } else if (delegatedResponse === null) {
+          await io.sendText(`(Could not reach ${label} — delegation failed)`);
         }
       }
     }

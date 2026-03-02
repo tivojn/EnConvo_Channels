@@ -67,7 +67,7 @@ describe('CLI command registration', () => {
     registerChannelsCommands(program);
 
     const subs = getSubcommandNames(program, 'channels');
-    const expected = ['list', 'status', 'add', 'remove', 'login', 'logout', 'capabilities', 'resolve', 'logs', 'send', 'groups', 'test'];
+    const expected = ['list', 'status', 'add', 'remove', 'login', 'logout', 'capabilities', 'resolve', 'logs', 'send', 'groups', 'test', 'deploy'];
     for (const cmd of expected) {
       expect(subs).toContain(cmd);
     }

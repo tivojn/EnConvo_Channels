@@ -2,9 +2,16 @@ import * as fs from 'fs';
 import { ParsedResponse } from './response-parser';
 import { isImageFile } from '../utils/file-types';
 
+const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.ogg', '.flac', '.aac', '.wav']);
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.avi', '.webm', '.mkv']);
+
+function getFileExt(filePath: string): string {
+  return filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+}
+
 /**
  * Deliver a parsed response to a Telegram chat via Bot API.
- * Sends text with Markdown fallback, then sends files as photo/document.
+ * Sends text with Markdown fallback, then sends files as photo/document/audio/video.
  */
 export async function deliverTelegram(token: string, chatId: string, parsed: ParsedResponse): Promise<void> {
   const { Bot, InputFile } = await import('grammy');
@@ -20,8 +27,13 @@ export async function deliverTelegram(token: string, chatId: string, parsed: Par
 
   for (const filePath of parsed.filePaths) {
     if (!fs.existsSync(filePath)) continue;
+    const ext = getFileExt(filePath);
     if (isImageFile(filePath)) {
       await bot.api.sendPhoto(chatId, new InputFile(filePath));
+    } else if (AUDIO_EXTS.has(ext)) {
+      await bot.api.sendAudio(chatId, new InputFile(filePath));
+    } else if (VIDEO_EXTS.has(ext)) {
+      await bot.api.sendVideo(chatId, new InputFile(filePath));
     } else {
       await bot.api.sendDocument(chatId, new InputFile(filePath));
     }

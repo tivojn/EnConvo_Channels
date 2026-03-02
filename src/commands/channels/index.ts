@@ -11,6 +11,7 @@ import { registerLogs } from './logs';
 import { registerSend } from './send';
 import { registerGroups } from './groups';
 import { registerTest } from './test';
+import { registerDeploy } from './deploy';
 
 export function registerChannelsCommands(program: Command): void {
   const channels = program
@@ -29,4 +30,5 @@ export function registerChannelsCommands(program: Command): void {
   registerSend(channels);
   registerGroups(channels);
   registerTest(channels);
+  registerDeploy(channels);
 }

@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import { EnConvoResponse } from './enconvo-client';
-import { IMAGE_EXTS } from '../utils/file-types';
 
 export interface DelegationDirective {
   targetAgentId: string;
@@ -13,15 +12,22 @@ export interface ParsedResponse {
   delegations: DelegationDirective[];
 }
 
-const ALL_FILE_EXTENSIONS = new Set([
-  ...IMAGE_EXTS,
-  '.txt', '.pdf', '.doc', '.docx', '.csv', '.json', '.xml',
-  '.mp3', '.mp4', '.wav', '.mov', '.zip', '.tar', '.gz',
+/** Extensions to EXCLUDE — config/code/system files that should never be delivered */
+const EXCLUDED_EXTENSIONS = new Set([
+  '.ts', '.js', '.mjs', '.cjs', '.jsx', '.tsx',
+  '.py', '.rb', '.rs', '.go', '.java', '.c', '.cpp', '.h',
+  '.sh', '.bash', '.zsh',
+  '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf',
+  '.env', '.lock', '.log',
+  '.md',
+  '.plist', '.dmg', '.app',
+  '.gitignore', '.eslintrc', '.prettierrc',
 ]);
 
 export function hasKnownExtension(filePath: string): boolean {
   const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-  return ALL_FILE_EXTENSIONS.has(ext);
+  // Any file with an extension is deliverable UNLESS it's a code/config file
+  return ext.length > 1 && !EXCLUDED_EXTENSIONS.has(ext);
 }
 
 /** Extract absolute file paths from any string */
@@ -32,7 +38,7 @@ export function extractAbsolutePaths(text: string): string[] {
   let match;
   while ((match = regex.exec(text)) !== null) {
     const p = match[1];
-    if (hasKnownExtension(p) && fs.existsSync(p)) {
+    if (hasKnownExtension(p) && fs.existsSync(p) && fs.statSync(p).isFile()) {
       paths.push(p);
     }
   }
@@ -87,11 +93,9 @@ export function detectDelegations(
     // Skip self-mentions or unknown IDs
     if (!rosterIds.includes(targetId)) continue;
 
-    // Use remaining text after the mention as delegation context
+    // Use full remaining text after the mention as delegation context (up to 1000 chars)
     const afterMention = text.slice(match.index + match[0].length).trim();
-    // Take the sentence or up to 200 chars as the delegation message
-    const sentenceEnd = afterMention.search(/[.!?\n]/);
-    const message = sentenceEnd > 0 ? afterMention.slice(0, sentenceEnd + 1).trim() : afterMention.slice(0, 200).trim();
+    const message = afterMention.slice(0, 1000).trim();
     if (message && !delegations.find(d => d.targetAgentId === targetId)) {
       delegations.push({ targetAgentId: targetId, message });
     }
@@ -120,18 +124,43 @@ export function parseResponse(
     if (msg.role !== 'assistant') continue;
 
     for (const item of msg.content) {
+      if (item.type === 'thinking') continue;
       if (item.type === 'text' && item.text) {
         textParts.push(item.text);
         filePaths.push(...extractAbsolutePaths(item.text));
       }
 
-      if (item.type === 'flow_step' && item.flowParams) {
-        // Deliverable tool has structured file references
-        if (item.flowName === 'Deliverable') {
-          filePaths.push(...extractDeliverableFiles(item.flowParams));
+      if (item.type === 'flow_step') {
+        // Extract generated files from flowResults (images, documents, etc.)
+        let gotOutputFiles = false;
+        if (item.flowResults) {
+          for (const result of item.flowResults) {
+            if (!result.content) continue;
+            for (const c of result.content) {
+              // Image outputs (image_to_image, image_generation)
+              if (c.type === 'image_url' && c.image_url?.url && fs.existsSync(c.image_url.url) && fs.statSync(c.image_url.url).isFile()) {
+                filePaths.push(c.image_url.url);
+                gotOutputFiles = true;
+              }
+              // Text results may contain file paths (pptx, docx, xlsx, etc.)
+              if (c.type === 'text' && c.text) {
+                filePaths.push(...extractAbsolutePaths(c.text));
+              }
+            }
+          }
         }
-        // Also scan any flow_step params for file paths (e.g. file_system--read_file)
-        filePaths.push(...extractAbsolutePaths(item.flowParams));
+
+        if (item.flowParams) {
+          // Deliverable tool has structured file references
+          if (item.flowName === 'Deliverable') {
+            filePaths.push(...extractDeliverableFiles(item.flowParams));
+          }
+          // Only scan flowParams for paths if no image/file outputs were found
+          // (flowParams contains input files like portrait references — not deliverables)
+          if (!gotOutputFiles) {
+            filePaths.push(...extractAbsolutePaths(item.flowParams));
+          }
+        }
       }
     }
   }

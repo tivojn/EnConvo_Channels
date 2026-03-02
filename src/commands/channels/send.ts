@@ -3,6 +3,8 @@ import * as crypto from 'crypto';
 import { getChannelInstance, resolveChatId, loadGlobalConfig } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
+import { routeToAgent } from '../../services/agent-router';
+import { buildRosterContext } from '../../services/handler-core';
 import { deliverTelegram, deliverDiscord } from '../../services/channel-deliver';
 import { outputError } from '../../utils/command-output';
 
@@ -39,19 +41,19 @@ export function registerSend(parent: Command): void {
 
       const config = loadGlobalConfig();
       const channel = opts.channel as string;
+      const apiOptions = { url: config.enconvo.url, timeoutMs: config.enconvo.timeoutMs };
       const sessionId = opts.reset
         ? `${channel}-${chatId}-${opts.name}-${crypto.randomUUID().slice(0, 8)}`
         : `${channel}-${chatId}-${opts.name}`;
 
+      // Build roster for delegation detection
+      const roster = buildRosterContext(opts.name);
+
       try {
         if (!opts.json) console.log(`Sending to ${opts.name} (${instance.agent})...`);
 
-        const response = await callEnConvo(opts.message, sessionId, instance.agent, {
-          url: config.enconvo.url,
-          timeoutMs: config.enconvo.timeoutMs,
-        });
-
-        const parsed = parseResponse(response);
+        const response = await callEnConvo(opts.message, sessionId, instance.agent, apiOptions);
+        const parsed = parseResponse(response, roster.rosterIds, roster.handleMap);
 
         if (!parsed.text && parsed.filePaths.length === 0) {
           if (opts.json) {
@@ -62,16 +64,45 @@ export function registerSend(parent: Command): void {
           return;
         }
 
-        // Deliver to the appropriate channel
-        switch (channel) {
-          case 'telegram':
-            await deliverTelegram(instance.token, chatId, parsed);
-            break;
-          case 'discord':
-            await deliverDiscord(instance.token, chatId, parsed);
-            break;
-          default:
-            throw new Error(`Channel "${channel}" does not support send yet.`);
+        // Deliver primary response
+        const deliver = channel === 'telegram'
+          ? (p: typeof parsed) => deliverTelegram(instance.token, chatId, p)
+          : channel === 'discord'
+            ? (p: typeof parsed) => deliverDiscord(instance.token, chatId, p)
+            : null;
+
+        if (!deliver) throw new Error(`Channel "${channel}" does not support send yet.`);
+        await deliver(parsed);
+
+        // Handle delegations — route to target agents and deliver their responses
+        if (parsed.delegations.length > 0 && roster.currentAgent) {
+          for (const delegation of parsed.delegations) {
+            const enrichedDelegation = {
+              ...delegation,
+              message: `[Original question: ${opts.message}]\n\n${delegation.message}`,
+            };
+            if (!opts.json) console.log(`  → Delegating to ${delegation.targetAgentId}...`);
+            const delegatedResponse = await routeToAgent(
+              roster.currentAgent.name,
+              enrichedDelegation,
+              { chatId, channel, instanceId: opts.name, apiOptions },
+            );
+            const target = roster.members.find(m => m.id === delegation.targetAgentId);
+            const label = target ? `${target.emoji} ${target.name}` : delegation.targetAgentId;
+            if (delegatedResponse && (delegatedResponse.text || delegatedResponse.filePaths.length > 0)) {
+              const headerResponse = {
+                text: delegatedResponse.text ? `[${label}]:\n${delegatedResponse.text}` : '',
+                filePaths: delegatedResponse.filePaths,
+                delegations: [],
+              };
+              await deliver(headerResponse);
+              if (!opts.json) console.log(`  ✓ ${label} responded`);
+            } else {
+              const failMsg = { text: `(Could not reach ${label} — delegation failed)`, filePaths: [], delegations: [] };
+              await deliver(failMsg);
+              if (!opts.json) console.log(`  ✗ ${label} — delegation failed`);
+            }
+          }
         }
 
         if (opts.json) {
@@ -82,6 +113,7 @@ export function registerSend(parent: Command): void {
             message: opts.message,
             response: parsed.text,
             files: parsed.filePaths,
+            delegations: parsed.delegations.map(d => d.targetAgentId),
           }, null, 2));
         } else {
           console.log(`\n${parsed.text ?? '(no text)'}`);

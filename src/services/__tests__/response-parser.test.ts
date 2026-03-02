@@ -8,6 +8,7 @@ vi.mock('fs', async () => {
   return {
     ...actual,
     existsSync: vi.fn().mockReturnValue(false),
+    statSync: vi.fn().mockReturnValue({ isFile: () => true }),
   };
 });
 
@@ -83,6 +84,55 @@ describe('parseResponse', () => {
     const parsed = parseResponse(response, ['mavis', 'elena', 'vivienne']);
     expect(parsed.delegations).toHaveLength(1);
     expect(parsed.delegations[0].targetAgentId).toBe('elena');
+  });
+
+  it('filters out thinking content items', () => {
+    const response: EnConvoResponse = {
+      messages: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', text: 'Let me think about this...' },
+            { type: 'text', text: 'Here is my answer.' },
+          ],
+        },
+      ],
+    };
+    const parsed = parseResponse(response);
+    expect(parsed.text).toBe('Here is my answer.');
+    expect(parsed.text).not.toContain('think about');
+  });
+
+  it('extracts image files from flowResults', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const response: EnConvoResponse = {
+      messages: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Here is your image.' },
+            {
+              type: 'flow_step',
+              flowName: 'image_to_image',
+              flowParams: '{"prompt":"test"}',
+              flowResults: [
+                {
+                  content: [
+                    {
+                      type: 'image_url',
+                      image_url: { url: '/tmp/generated/selfie.jpeg' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const parsed = parseResponse(response);
+    expect(parsed.filePaths).toContain('/tmp/generated/selfie.jpeg');
+    vi.mocked(fs.existsSync).mockReturnValue(false);
   });
 
   it('returns no delegations without roster', () => {
@@ -171,10 +221,17 @@ describe('detectDelegations', () => {
     expect(result[0].message).toBe('about the Q3 budget report.');
   });
 
-  it('caps message at 200 chars if no sentence end', () => {
-    const longText = '@elena ' + 'a'.repeat(300);
+  it('caps message at 1000 chars for long text', () => {
+    const longText = '@elena ' + 'a'.repeat(1200);
     const result = detectDelegations(longText, roster);
-    expect(result[0].message.length).toBeLessThanOrEqual(200);
+    expect(result[0].message.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('includes full paragraph after mention instead of just one sentence', () => {
+    const text = '@elena write a tagline for our brand. It should be catchy and memorable. Make it pop!';
+    const result = detectDelegations(text, roster);
+    // Should include all text after mention, not stop at first period
+    expect(result[0].message).toContain('Make it pop!');
   });
 });
 
@@ -197,10 +254,21 @@ describe('hasKnownExtension', () => {
     expect(hasKnownExtension('/file.wav')).toBe(true);
   });
 
-  it('rejects unknown extensions', () => {
-    expect(hasKnownExtension('/file.xyz')).toBe(false);
-    expect(hasKnownExtension('/file.rs')).toBe(false);
+  it('rejects code and config extensions', () => {
     expect(hasKnownExtension('/file.ts')).toBe(false);
+    expect(hasKnownExtension('/file.py')).toBe(false);
+    expect(hasKnownExtension('/file.sh')).toBe(false);
+    expect(hasKnownExtension('/file.env')).toBe(false);
+    expect(hasKnownExtension('/file.yml')).toBe(false);
+  });
+
+  it('accepts any non-code extension as deliverable', () => {
+    expect(hasKnownExtension('/file.m4a')).toBe(true);
+    expect(hasKnownExtension('/file.ogg')).toBe(true);
+    expect(hasKnownExtension('/file.pptx')).toBe(true);
+    expect(hasKnownExtension('/file.xlsx')).toBe(true);
+    expect(hasKnownExtension('/file.aac')).toBe(true);
+    expect(hasKnownExtension('/file.webm')).toBe(true);
   });
 
   it('is case insensitive', () => {
