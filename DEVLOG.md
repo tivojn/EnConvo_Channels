@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-02 (Phase 15)
+**Last updated:** 2026-03-02 (Phase 16)
 
 ---
 
@@ -1493,4 +1493,37 @@ Completed the systematic adoption of `outputError()` across all CLI commands wit
 - 51 test suites, ~7146 test LOC
 - 558 tests, all passing
 - Test/source LOC ratio: ~112%
+- TypeScript: strict mode, clean compilation
+
+---
+
+## Phase 16: Code Maturity Audit & DRY Cleanup (Round 80)
+
+**Session date:** 2026-03-02
+
+### Summary
+Comprehensive codebase audit confirming high maturity. One duplicate utility removed, plus deep verification that the codebase is well-structured with no remaining systematic issues.
+
+### Key Improvements
+
+**DRY Version Utilities:**
+- `version.ts` had private `getCliVersion()` and `getEnConvoAppVersion()` that duplicated the exported functions in `info.ts` (already tested in `info.test.ts`)
+- Removed 22 lines of duplicate code — `version.ts` now imports from `info.ts`
+- File reduced from 52 to 30 lines
+
+### Audit Findings (No Action Needed)
+- **No TODO/FIXME/HACK comments** in production code
+- **All `as any` assertions** confined to test files (appropriate for mocking)
+- **All `as unknown` assertions** in production code are necessary (dot-path navigation)
+- **`process.exit()` handling** consistent and correct across all commands
+- **All utils/** have corresponding test files (7/7)
+- **Zero unused exports** in production-consumed code (`WORKSPACES_DIR` and `migrateFromLegacy` are only test-consumed but intentional API surface)
+- **No inline error patterns** remain (all use `outputError`)
+- **No duplicate imports** remain
+
+### Metrics
+- 84 source files, ~6106 source LOC
+- 51 test suites, ~7146 test LOC
+- 558 tests, all passing
+- Test/source LOC ratio: ~117%
 - TypeScript: strict mode, clean compilation
