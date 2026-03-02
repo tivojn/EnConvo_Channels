@@ -18,6 +18,7 @@ export function registerSend(parent: Command): void {
     .option('--group <name>', 'Named group (resolves to chat ID)')
     .requiredOption('--message <text>', 'Message to send')
     .option('--reset', 'Start a fresh conversation (new session ID)')
+    .option('--timeout <ms>', 'Override timeout in milliseconds (default: from config)')
     .option('--json', 'Output as JSON')
     .action(async (opts) => {
       const instance = getChannelInstance(opts.channel, opts.name);
@@ -41,7 +42,8 @@ export function registerSend(parent: Command): void {
 
       const config = loadGlobalConfig();
       const channel = opts.channel as string;
-      const apiOptions = { url: config.enconvo.url, timeoutMs: config.enconvo.timeoutMs };
+      const timeoutMs = opts.timeout ? Number(opts.timeout) : config.enconvo.timeoutMs;
+      const apiOptions = { url: config.enconvo.url, timeoutMs };
       const sessionId = opts.reset
         ? `${channel}-${chatId}-${opts.name}-${crypto.randomUUID().slice(0, 8)}`
         : `${channel}-${chatId}-${opts.name}`;
