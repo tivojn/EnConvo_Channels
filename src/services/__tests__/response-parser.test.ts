@@ -103,6 +103,23 @@ describe('parseResponse', () => {
     expect(parsed.text).not.toContain('think about');
   });
 
+  it('strips serialized thinking JSON embedded in text content', () => {
+    const thinkingJson = '{"type":"thinking","id":"abc123","thinkingContent":"I need to figure this out","thinkingTime":500,"thinkingStatus":"success","signature":"base64data"}';
+    const response: EnConvoResponse = {
+      messages: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: `${thinkingJson} Here is the real answer.` },
+          ],
+        },
+      ],
+    };
+    const parsed = parseResponse(response);
+    expect(parsed.text).toBe('Here is the real answer.');
+    expect(parsed.text).not.toContain('thinkingContent');
+  });
+
   it('extracts image files from flowResults', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     const response: EnConvoResponse = {
