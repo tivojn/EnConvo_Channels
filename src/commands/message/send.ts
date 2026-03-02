@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
 import { getChannelInstance, loadGlobalConfig } from '../../config/store';
 import { loadAgentsRoster } from '../../config/agent-store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
+import { deliverTelegram, deliverDiscord } from '../../services/channel-deliver';
 
 export function registerMessageSend(parent: Command): void {
   parent
@@ -84,36 +84,11 @@ export function registerMessageSend(parent: Command): void {
 
         // If --deliver, also send to channel
         if (opts.deliver && parsed.text) {
-          const { Bot, InputFile } = await import('grammy');
           if (opts.channel === 'telegram') {
-            const bot = new Bot(instance.token);
-            try {
-              await bot.api.sendMessage(opts.target, parsed.text, { parse_mode: 'Markdown' });
-            } catch {
-              await bot.api.sendMessage(opts.target, parsed.text);
-            }
-            for (const filePath of parsed.filePaths) {
-              if (!fs.existsSync(filePath)) continue;
-              const { isImageFile } = await import('../../utils/file-types');
-              if (isImageFile(filePath)) {
-                await bot.api.sendPhoto(opts.target, new InputFile(filePath));
-              } else {
-                await bot.api.sendDocument(opts.target, new InputFile(filePath));
-              }
-            }
+            await deliverTelegram(instance.token, opts.target, parsed);
             if (!opts.json) console.log(`\n→ Delivered to ${opts.target} via ${opts.channel}`);
           } else if (opts.channel === 'discord') {
-            const { splitMessage } = await import('../../channels/discord/utils/message-splitter');
-            const baseUrl = `https://discord.com/api/v10/channels/${opts.target}/messages`;
-            const headers = {
-              Authorization: `Bot ${instance.token}`,
-              'Content-Type': 'application/json',
-              'User-Agent': 'DiscordBot (https://enconvo.com, 1.0)',
-            };
-            const chunks = splitMessage(parsed.text);
-            for (const chunk of chunks) {
-              await fetch(baseUrl, { method: 'POST', headers, body: JSON.stringify({ content: chunk }) });
-            }
+            await deliverDiscord(instance.token, opts.target, parsed);
             if (!opts.json) console.log(`\n→ Delivered to ${opts.target} via ${opts.channel}`);
           }
         }
