@@ -655,3 +655,15 @@
   - File delivery on Discord: PASS (selfie, no portrait leak)
   - Error handling: PASS (timeout, bad instance, missing args)
 - **Skill updates:** "End response with work not words", "Stop and summarize" enforcement
+
+## [2026-03-02 15:00] Round 96: OpenClaw Use Case Testing + Web Search Enablement
+- **Status:** success
+- **Config change:** Added web_search + web_fetch tools to Elena and Vivienne
+- **Tests run:** 6 real-world use cases from X/Reddit research
+  - Morning Brief via Mavis: PASS
+  - Multi-agent research via Timothy: PASS
+  - Team coordination (business plan): PASS — all 3 delegations fired
+  - Financial research via Vivienne: PASS (after adding web_search)
+  - Content trends via Elena: PASS (after adding web_search)
+  - Bitcoin ETF team report: PASS — full 3-agent coordination with sources
+- **Key finding:** Elena and Vivienne were missing web search tools, limiting their ability to do research. Fixed by adding internet_browsing|web_search and link_reader|web_fetch to their preference configs.
