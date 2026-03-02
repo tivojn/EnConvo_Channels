@@ -5,11 +5,72 @@ import { loadGlobalConfig, saveGlobalConfig, GlobalConfig } from '../config/stor
 import { loadAgentsRoster, saveAgentsRoster, AgentsRoster } from '../config/agent-store';
 import { ENCONVO_CLI_CONFIG_PATH, AGENTS_CONFIG_PATH, BACKUPS_DIR } from '../config/paths';
 
-interface ExportBundle {
+export interface ExportBundle {
   exportedAt: string;
   cliVersion: string;
   config: GlobalConfig;
   agents: AgentsRoster;
+}
+
+/** Strip all bot tokens from a config, replacing with ***REDACTED*** */
+export function stripTokens(config: GlobalConfig): void {
+  for (const channelName of Object.keys(config.channels)) {
+    for (const instName of Object.keys(config.channels[channelName].instances)) {
+      config.channels[channelName].instances[instName].token = '***REDACTED***';
+    }
+  }
+}
+
+/** Check if any instance tokens are redacted */
+export function hasRedactedTokens(config: GlobalConfig): boolean {
+  for (const ch of Object.values(config.channels)) {
+    for (const inst of Object.values(ch.instances)) {
+      if (inst.token === '***REDACTED***') return true;
+    }
+  }
+  return false;
+}
+
+/** Count channels, instances, and agents in a bundle */
+export function countBundleInventory(bundle: ExportBundle): { channels: number; instances: number; agents: number } {
+  const channels = Object.keys(bundle.config.channels).length;
+  let instances = 0;
+  for (const ch of Object.values(bundle.config.channels)) {
+    instances += Object.keys(ch.instances).length;
+  }
+  const agents = bundle.agents.members?.length ?? 0;
+  return { channels, instances, agents };
+}
+
+/** Merge imported config into existing config (non-destructive) */
+export function mergeConfigs(
+  current: GlobalConfig,
+  imported: GlobalConfig,
+): void {
+  for (const [chName, chData] of Object.entries(imported.channels)) {
+    if (!current.channels[chName]) {
+      current.channels[chName] = chData;
+    } else {
+      for (const [instName, inst] of Object.entries(chData.instances)) {
+        if (!current.channels[chName].instances[instName]) {
+          current.channels[chName].instances[instName] = inst;
+        }
+      }
+    }
+  }
+}
+
+/** Merge imported agents into existing roster (skip duplicates) */
+export function mergeAgents(
+  current: AgentsRoster,
+  imported: AgentsRoster,
+): void {
+  const existingIds = new Set(current.members.map(m => m.id));
+  for (const member of imported.members ?? []) {
+    if (!existingIds.has(member.id)) {
+      current.members.push(member);
+    }
+  }
 }
 
 export function registerExportCommand(program: Command): void {
@@ -23,11 +84,7 @@ export function registerExportCommand(program: Command): void {
       const agents = loadAgentsRoster();
 
       if (opts.stripTokens) {
-        for (const channelName of Object.keys(config.channels)) {
-          for (const instName of Object.keys(config.channels[channelName].instances)) {
-            config.channels[channelName].instances[instName].token = '***REDACTED***';
-          }
-        }
+        stripTokens(config);
       }
 
       const bundle: ExportBundle = {
@@ -74,26 +131,14 @@ export function registerImportCommand(program: Command): void {
       }
 
       // Inventory
-      const channelCount = Object.keys(bundle.config.channels).length;
-      let instanceCount = 0;
-      for (const ch of Object.values(bundle.config.channels)) {
-        instanceCount += Object.keys(ch.instances).length;
-      }
-      const agentCount = bundle.agents.members?.length ?? 0;
+      const inv = countBundleInventory(bundle);
 
       console.log(`\nImport summary (exported ${bundle.exportedAt || 'unknown'}):`);
-      console.log(`  Channels: ${channelCount}`);
-      console.log(`  Instances: ${instanceCount}`);
-      console.log(`  Agents: ${agentCount}`);
+      console.log(`  Channels: ${inv.channels}`);
+      console.log(`  Instances: ${inv.instances}`);
+      console.log(`  Agents: ${inv.agents}`);
 
-      // Check for redacted tokens
-      let hasRedacted = false;
-      for (const ch of Object.values(bundle.config.channels)) {
-        for (const inst of Object.values(ch.instances)) {
-          if (inst.token === '***REDACTED***') hasRedacted = true;
-        }
-      }
-      if (hasRedacted) {
+      if (hasRedactedTokens(bundle.config)) {
         console.log('\n  Warning: Some tokens are redacted. Those instances will need tokens re-added.');
       }
 
@@ -115,28 +160,11 @@ export function registerImportCommand(program: Command): void {
       }
 
       if (opts.merge) {
-        // Merge: add imported channels/agents without overwriting existing
         const currentConfig = loadGlobalConfig();
         const currentAgents = loadAgentsRoster();
 
-        for (const [chName, chData] of Object.entries(bundle.config.channels)) {
-          if (!currentConfig.channels[chName]) {
-            currentConfig.channels[chName] = chData;
-          } else {
-            for (const [instName, inst] of Object.entries(chData.instances)) {
-              if (!currentConfig.channels[chName].instances[instName]) {
-                currentConfig.channels[chName].instances[instName] = inst;
-              }
-            }
-          }
-        }
-
-        const existingIds = new Set(currentAgents.members.map(m => m.id));
-        for (const member of bundle.agents.members ?? []) {
-          if (!existingIds.has(member.id)) {
-            currentAgents.members.push(member);
-          }
-        }
+        mergeConfigs(currentConfig, bundle.config);
+        mergeAgents(currentAgents, bundle.agents);
 
         saveGlobalConfig(currentConfig);
         saveAgentsRoster(currentAgents);

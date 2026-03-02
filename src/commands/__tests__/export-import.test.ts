@@ -2,6 +2,46 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import {
+  stripTokens,
+  hasRedactedTokens,
+  countBundleInventory,
+  mergeConfigs,
+  mergeAgents,
+  ExportBundle,
+} from '../export-import';
+import type { GlobalConfig } from '../../config/store';
+import type { AgentsRoster, AgentMember } from '../../config/agent-store';
+
+function makeConfig(overrides?: Partial<GlobalConfig>): GlobalConfig {
+  return {
+    version: 2,
+    enconvo: { url: 'http://localhost:54535', timeoutMs: 30000, agents: [], defaultAgent: '' },
+    channels: {},
+    ...overrides,
+  };
+}
+
+function makeRoster(members: AgentMember[] = []): AgentsRoster {
+  return { version: 1, team: 'Test', members };
+}
+
+function makeMember(id: string, overrides?: Partial<AgentMember>): AgentMember {
+  return {
+    id, name: id, emoji: '🤖', role: 'r', specialty: 's', isLead: false,
+    bindings: { agentPath: `test/${id}`, telegramBot: `@${id}Bot`, instanceName: id },
+    preferenceKey: `test|${id}`, workspacePath: `/tmp/${id}`,
+    ...overrides,
+  };
+}
+
+function inst(token: string, agent: string, enabled = true) {
+  return {
+    token, enabled, agent,
+    allowedUserIds: [] as (number | string)[],
+    service: { plistLabel: 'x', logPath: '/x', errorLogPath: '/x' },
+  };
+}
 
 let tmpDir: string;
 
@@ -163,5 +203,101 @@ describe('export/import round-trip', () => {
     // Both should exist
     expect(config.channels.telegram.instances.existing).toBeDefined();
     expect(config.channels.discord.instances.merged).toBeDefined();
+  });
+});
+
+describe('stripTokens', () => {
+  it('redacts all tokens', () => {
+    const config = makeConfig({
+      channels: {
+        telegram: { instances: { a: inst('secret', 'x') } },
+        discord: { instances: { b: inst('other', 'y') } },
+      },
+    });
+    stripTokens(config);
+    expect(config.channels.telegram.instances.a.token).toBe('***REDACTED***');
+    expect(config.channels.discord.instances.b.token).toBe('***REDACTED***');
+  });
+
+  it('handles empty channels', () => {
+    expect(() => stripTokens(makeConfig())).not.toThrow();
+  });
+});
+
+describe('hasRedactedTokens', () => {
+  it('returns false for real tokens', () => {
+    const config = makeConfig({
+      channels: { telegram: { instances: { a: inst('real', 'x') } } },
+    });
+    expect(hasRedactedTokens(config)).toBe(false);
+  });
+
+  it('returns true for redacted tokens', () => {
+    const config = makeConfig({
+      channels: { telegram: { instances: { a: inst('***REDACTED***', 'x') } } },
+    });
+    expect(hasRedactedTokens(config)).toBe(true);
+  });
+});
+
+describe('countBundleInventory', () => {
+  it('counts empty bundle', () => {
+    const bundle: ExportBundle = { exportedAt: '', cliVersion: '2.0.0', config: makeConfig(), agents: makeRoster() };
+    expect(countBundleInventory(bundle)).toEqual({ channels: 0, instances: 0, agents: 0 });
+  });
+
+  it('counts populated bundle', () => {
+    const config = makeConfig({
+      channels: {
+        telegram: { instances: { a: inst('x', 'x'), b: inst('y', 'y') } },
+        discord: { instances: { c: inst('z', 'z') } },
+      },
+    });
+    const bundle: ExportBundle = { exportedAt: '', cliVersion: '2.0.0', config, agents: makeRoster([makeMember('m1'), makeMember('m2')]) };
+    expect(countBundleInventory(bundle)).toEqual({ channels: 2, instances: 3, agents: 2 });
+  });
+});
+
+describe('mergeConfigs', () => {
+  it('adds new channel without overwriting', () => {
+    const current = makeConfig({ channels: { telegram: { instances: { a: inst('old', 'x') } } } });
+    const imported = makeConfig({ channels: { discord: { instances: { b: inst('new', 'y') } } } });
+    mergeConfigs(current, imported);
+    expect(current.channels.telegram.instances.a.token).toBe('old');
+    expect(current.channels.discord.instances.b.token).toBe('new');
+  });
+
+  it('adds new instance to existing channel', () => {
+    const current = makeConfig({ channels: { telegram: { instances: { a: inst('old', 'x') } } } });
+    const imported = makeConfig({ channels: { telegram: { instances: { b: inst('new', 'y') } } } });
+    mergeConfigs(current, imported);
+    expect(Object.keys(current.channels.telegram.instances)).toEqual(['a', 'b']);
+  });
+
+  it('does not overwrite existing instance', () => {
+    const current = makeConfig({ channels: { telegram: { instances: { a: inst('keep', 'x') } } } });
+    const imported = makeConfig({ channels: { telegram: { instances: { a: inst('replace', 'z', false) } } } });
+    mergeConfigs(current, imported);
+    expect(current.channels.telegram.instances.a.token).toBe('keep');
+  });
+});
+
+describe('mergeAgents', () => {
+  it('adds new agents', () => {
+    const current = makeRoster([makeMember('a')]);
+    mergeAgents(current, makeRoster([makeMember('b')]));
+    expect(current.members).toHaveLength(2);
+  });
+
+  it('skips duplicate IDs', () => {
+    const current = makeRoster([makeMember('a')]);
+    mergeAgents(current, makeRoster([makeMember('a')]));
+    expect(current.members).toHaveLength(1);
+  });
+
+  it('handles empty import', () => {
+    const current = makeRoster([makeMember('a')]);
+    mergeAgents(current, makeRoster());
+    expect(current.members).toHaveLength(1);
   });
 });
