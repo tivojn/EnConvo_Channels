@@ -13,25 +13,25 @@ import {
 } from '../../config/paths';
 import { outputError } from '../../utils/command-output';
 
-interface CheckResult {
+export interface CheckResult {
   label: string;
   status: 'ok' | 'warn' | 'fail';
   detail: string;
 }
 
-interface AgentCheckReport {
+export interface AgentCheckReport {
   id: string;
   name: string;
   emoji: string;
   checks: CheckResult[];
 }
 
-interface VersionInfo {
+export interface VersionInfo {
   version: string;
   build: number;
 }
 
-function getEnConvoVersion(): VersionInfo | null {
+export function getEnConvoVersion(): VersionInfo | null {
   if (!fs.existsSync(ENCONVO_APP_PLIST)) return null;
   try {
     const version = execSync(
@@ -48,7 +48,7 @@ function getEnConvoVersion(): VersionInfo | null {
   }
 }
 
-function checkAgent(agent: AgentMember): CheckResult[] {
+export function checkAgent(agent: AgentMember): CheckResult[] {
   const checks: CheckResult[] = [];
 
   // 1. Command file exists
@@ -107,7 +107,7 @@ function checkAgent(agent: AgentMember): CheckResult[] {
   return checks;
 }
 
-function checkTeamKB(): CheckResult {
+export function checkTeamKB(): CheckResult {
   if (!fs.existsSync(TEAM_KB_DIR)) {
     return { label: 'Team KB', status: 'warn', detail: `${TEAM_KB_DIR} not found` };
   }
@@ -119,7 +119,7 @@ function checkTeamKB(): CheckResult {
   };
 }
 
-function checkEnConvoVersion(stored: EnConvoAppInfo | undefined): {
+export function checkEnConvoVersion(stored: EnConvoAppInfo | undefined): {
   result: CheckResult;
   current: VersionInfo | null;
   changed: boolean;
@@ -163,7 +163,7 @@ function checkEnConvoVersion(stored: EnConvoAppInfo | undefined): {
   };
 }
 
-function checkApiReachable(url: string): CheckResult {
+export function checkApiReachable(url: string): CheckResult {
   try {
     execSync(`curl -sf -o /dev/null --connect-timeout 2 "${url}"`, { encoding: 'utf-8' });
     return { label: 'API reachable', status: 'ok', detail: url };
@@ -172,7 +172,7 @@ function checkApiReachable(url: string): CheckResult {
   }
 }
 
-const STATUS_ICON: Record<CheckResult['status'], string> = { ok: '\u2713', warn: '\u2717', fail: '\u2717' };
+export const STATUS_ICON: Record<CheckResult['status'], string> = { ok: '\u2713', warn: '\u2717', fail: '\u2717' };
 
 export function registerCheck(parent: Command): void {
   parent
