@@ -570,13 +570,19 @@
 - **Commit:** 40963d0
 - **Notes:** Merged split import statements from same module into single lines in channels/send.ts, agents/add.ts, agents/check.ts.
 
+## [2026-03-02 09:40] Self-Evolve Round 80: DRY version utilities
+- **Status:** success (refactor)
+- **Tests:** 558/558 (51 suites)
+- **Commit:** 8c56cff
+- **Notes:** Removed duplicate getCliVersion() and getEnConvoAppVersion() from version.ts. These were private copies of the exported functions in info.ts (already tested in info.test.ts). version.ts now imports from info.ts. File reduced from 52 to 30 lines (22 lines removed).
+
 ---
 
-### Cumulative Stats (Round 78)
+### Cumulative Stats (Round 80)
 - Source files: 84
-- Source LOC: ~6350
+- Source LOC: ~6106
 - Test suites: 51
 - Test LOC: ~7146
 - Tests: 558, all passing
-- Test/source LOC ratio: ~112%
+- Test/source LOC ratio: ~117%
 - TypeScript: strict mode, clean compilation
