@@ -351,3 +351,44 @@
   - Extracted 5 pure functions: stripTokens, hasRedactedTokens, countBundleInventory, mergeConfigs, mergeAgents
   - Added 12 tests covering token redaction, inventory counting, merge semantics
   - Exported ExportBundle type for testing
+
+## [2026-03-02 08:10] Self-Evolve Round 39: expandHome extraction + info helpers
+- **Status:** success
+- **Tests:** 278/278 → 284/284 (30 suites)
+- **Commit:** de74fa3
+- **Notes:**
+  - Extracted expandHome() from logs.ts to command-output.ts
+  - Exported getPackageVersion/getEnConvoAppVersion from info.ts
+  - Added 6 new tests (4 expandHome, 2 info)
+
+## [2026-03-02 08:14] Self-Evolve Round 40: agents sync pure function tests
+- **Status:** success
+- **Tests:** 284/284 → 290/290 (31 suites)
+- **Commit:** 402f838
+- **Notes:**
+  - Exported syncAgents() and SyncResult from agents/sync.ts
+  - 6 tests: dry-run, skip missing pref, sync existing, backup, multi-agent, regen workspace
+
+## [2026-03-02 08:17] Self-Evolve Round 41: agents check exported helpers + 15 tests
+- **Status:** success
+- **Tests:** 290/290 → 305/305 (31 suites)
+- **Commit:** 9d5a272
+- **Notes:**
+  - Exported checkAgent, checkTeamKB, checkEnConvoVersion, getEnConvoVersion, STATUS_ICON + types
+  - 15 tests: all-fail empty agent, cmd/pref file detection, prompt sync, workspace checks, KB dir, version comparison
+
+## [2026-03-02 08:19] Self-Evolve Round 42: Middleware tests (auth + mention-gate)
+- **Status:** success
+- **Tests:** 305/305 → 320/320 (33 suites)
+- **Commit:** a2fa8d1
+- **Notes:**
+  - Telegram auth middleware: 5 tests (open mode, allowlist, block, undefined from)
+  - Discord mention-gate: 10 tests (DMs, @mention, reply-to-bot, commands, case, fetch error)
+
+## [2026-03-02 08:22] Self-Evolve Round 43: Response parser helper exports + 15 tests
+- **Status:** success
+- **Tests:** 320/320 → 335/335 (33 suites)
+- **Commit:** 2b73b8c
+- **Notes:**
+  - Exported hasKnownExtension, extractAbsolutePaths, extractDeliverableFiles
+  - 15 tests: image/doc/media exts, case insensitivity, path extraction, deliverable filtering

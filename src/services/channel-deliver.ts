@@ -41,8 +41,8 @@ export async function deliverDiscord(token: string, channelId: string, parsed: P
   };
 
   if (parsed.text) {
-    const { splitMessage } = await import('../channels/discord/utils/message-splitter');
-    const chunks = splitMessage(parsed.text);
+    const { splitMessage, DISCORD_MAX_LENGTH } = await import('../utils/message-splitter');
+    const chunks = splitMessage(parsed.text, DISCORD_MAX_LENGTH);
     for (const chunk of chunks) {
       const res = await fetch(baseUrl, {
         method: 'POST',
