@@ -1,37 +1,50 @@
-# Project Evaluation
+# Project Evaluation — Round 86
 **Date:** 2026-03-02
-**Repo:** enconvo_cli (EnConvo_Channels)
-**Tech Stack:** TypeScript, Commander.js, Grammy, discord.js
-**LOC:** ~4,423 (src/)
+**Repo:** enconvo_cli
+**Tech Stack:** TypeScript, Node.js, Commander.js, Grammy (Telegram), Discord.js
+**LOC:** ~4,500 (src/)
+**Tests:** 571 passing | 52 test files
+**Lint:** 0 warnings | 0 errors
+**Typecheck:** clean
 
 ## Scores
 | Area | Score | Notes |
 |---|---|---|
-| Tests | none | Zero test files. No test framework installed. |
-| CI/CD | none | No GitHub Actions, no workflows |
-| Docs | minimal | README exists, DEVLOG is thorough |
-| Linting | none | No ESLint, no Prettier, no .editorconfig |
-| Types | strict | tsconfig strict: true, compiles clean |
-| Security | basic | .env in .gitignore, credentials in config |
-| Dependencies | current | 4 deps, 3 devDeps, all recent |
-| Git Hygiene | loose | No hooks, no conventional commits enforced |
-| Error Handling | adequate | Try/catch in handlers, typed errors |
-| Performance | unknown | No profiling, no benchmarks |
+| Tests | good | 571 tests, 100%+ test-to-source ratio |
+| Linting | enforced | ESLint, zero warnings |
+| Types | strict | TypeScript strict, zero errors |
+| CI/CD | none | No GitHub Actions (local tool, not needed) |
+| Docs | minimal | README exists, no API docs |
+| Error Handling | robust | Typed errors, user-facing messages, delegation failures |
+| Live Testing | **verified** | All file types: images, audio, pptx, docx on Telegram + Discord |
+| Deployment | good | `channels deploy` command, per-instance launchd plists, mirror sync |
 
-## Top Opportunities (prioritized)
-1. [HIGH] Add unit tests — 0% coverage, critical services untested
-2. [HIGH] Add ESLint + Prettier — no code style enforcement
-3. [MED] Add GitHub Actions CI — no automated build/test
-4. [MED] Add .editorconfig — no editor consistency
-5. [MED] Add pre-commit hooks — no husky/lint-staged
-6. [LOW] Improve error types — custom error classes
-7. [LOW] Add npm scripts for test/lint
+## Status: Functionally Verified
+- Agent delegation: working (Telegram + Discord)
+- Session isolation: per-agent sessions, no identity bleed
+- File delivery: universal (images, audio, video, documents) — exclude-list approach
+- No portrait leak on either channel
+- 5-minute timeout for long operations (pptx generation)
+- All 8 services (4 Telegram + 4 Discord) deployed and running
+- Identity persistence: 12/12 rounds passed, zero hallucination
+
+## Completed This Session (Rounds 84-86)
+- fix: 6 core agent bugs (session isolation, context, apiOptions, errors, thinking filter)
+- fix: flowResults extraction for generated files
+- fix: portrait file leak (flowParams input vs output distinction)
+- fix: universal file extension handling (exclude-list)
+- fix: directory path crash (isFile validation)
+- feat: channels deploy command with mirror sync
+- feat: channels send delegation support
+- feat: Telegram sendAudio/sendVideo delivery methods
+- feat: run.sh CLI arg passthrough
 
 ## External Dependencies
 - EnConvo API (localhost:54535)
 - Telegram Bot API (via grammy)
 - Discord API (via discord.js)
 
-## Credential Requirements
-- Already managed via ~/.enconvo_cli/config.json (tokens per instance)
-- No additional credentials needed for self-evolution
+## Remaining Opportunities
+1. [LOW] Discord group management (`channels groups` for Discord)
+2. [LOW] `--timeout` flag on `channels send` for per-request override
+3. [LOW] Handle multi-turn interactive agents in send command
