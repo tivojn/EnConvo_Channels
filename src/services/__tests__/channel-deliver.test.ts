@@ -13,6 +13,8 @@ vi.mock('fs', async () => {
 // Mock grammy
 const mockSendMessage = vi.fn().mockResolvedValue({});
 const mockSendPhoto = vi.fn().mockResolvedValue({});
+const mockSendAudio = vi.fn().mockResolvedValue({});
+const mockSendVideo = vi.fn().mockResolvedValue({});
 const mockSendDocument = vi.fn().mockResolvedValue({});
 
 vi.mock('grammy', () => {
@@ -20,6 +22,8 @@ vi.mock('grammy', () => {
     api = {
       sendMessage: mockSendMessage,
       sendPhoto: mockSendPhoto,
+      sendAudio: mockSendAudio,
+      sendVideo: mockSendVideo,
       sendDocument: mockSendDocument,
     };
   }
@@ -83,6 +87,28 @@ describe('deliverTelegram', () => {
     await deliverTelegram('token', '123', parsed);
     expect(mockSendDocument).toHaveBeenCalledTimes(1);
     expect(mockSendPhoto).not.toHaveBeenCalled();
+  });
+
+  it('sends audio files via sendAudio', async () => {
+    const parsed: ParsedResponse = { text: '', filePaths: ['/tmp/voice.mp3'], delegations: [] };
+    await deliverTelegram('token', '123', parsed);
+    expect(mockSendAudio).toHaveBeenCalledTimes(1);
+    expect(mockSendPhoto).not.toHaveBeenCalled();
+    expect(mockSendDocument).not.toHaveBeenCalled();
+  });
+
+  it('sends video files via sendVideo', async () => {
+    const parsed: ParsedResponse = { text: '', filePaths: ['/tmp/clip.mp4'], delegations: [] };
+    await deliverTelegram('token', '123', parsed);
+    expect(mockSendVideo).toHaveBeenCalledTimes(1);
+    expect(mockSendPhoto).not.toHaveBeenCalled();
+    expect(mockSendDocument).not.toHaveBeenCalled();
+  });
+
+  it('sends m4a as audio', async () => {
+    const parsed: ParsedResponse = { text: '', filePaths: ['/tmp/memo.m4a'], delegations: [] };
+    await deliverTelegram('token', '123', parsed);
+    expect(mockSendAudio).toHaveBeenCalledTimes(1);
   });
 
   it('skips files that do not exist', async () => {
