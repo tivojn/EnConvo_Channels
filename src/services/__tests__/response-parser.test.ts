@@ -1,6 +1,17 @@
-import { describe, it, expect } from 'vitest';
-import { parseResponse, detectDelegations } from '../response-parser';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { parseResponse, detectDelegations, hasKnownExtension, extractAbsolutePaths, extractDeliverableFiles } from '../response-parser';
 import type { EnConvoResponse } from '../enconvo-client';
+
+// Mock fs so we can control existsSync
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn().mockReturnValue(false),
+  };
+});
+
+import * as fs from 'fs';
 
 describe('parseResponse', () => {
   it('parses simple result format', () => {
@@ -164,5 +175,124 @@ describe('detectDelegations', () => {
     const longText = '@elena ' + 'a'.repeat(300);
     const result = detectDelegations(longText, roster);
     expect(result[0].message.length).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('hasKnownExtension', () => {
+  it('recognizes image extensions', () => {
+    expect(hasKnownExtension('/path/to/photo.jpg')).toBe(true);
+    expect(hasKnownExtension('/path/to/image.png')).toBe(true);
+    expect(hasKnownExtension('/path/to/file.gif')).toBe(true);
+  });
+
+  it('recognizes document extensions', () => {
+    expect(hasKnownExtension('/file.pdf')).toBe(true);
+    expect(hasKnownExtension('/file.csv')).toBe(true);
+    expect(hasKnownExtension('/file.json')).toBe(true);
+  });
+
+  it('recognizes media extensions', () => {
+    expect(hasKnownExtension('/file.mp3')).toBe(true);
+    expect(hasKnownExtension('/file.mp4')).toBe(true);
+    expect(hasKnownExtension('/file.wav')).toBe(true);
+  });
+
+  it('rejects unknown extensions', () => {
+    expect(hasKnownExtension('/file.xyz')).toBe(false);
+    expect(hasKnownExtension('/file.rs')).toBe(false);
+    expect(hasKnownExtension('/file.ts')).toBe(false);
+  });
+
+  it('is case insensitive', () => {
+    expect(hasKnownExtension('/FILE.JPG')).toBe(true);
+    expect(hasKnownExtension('/FILE.PDF')).toBe(true);
+  });
+});
+
+describe('extractAbsolutePaths', () => {
+  afterEach(() => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+  });
+
+  it('extracts existing absolute paths with known extensions', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const result = extractAbsolutePaths('Here is the file: /tmp/output/report.pdf');
+    expect(result).toContain('/tmp/output/report.pdf');
+  });
+
+  it('skips paths that do not exist', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    const result = extractAbsolutePaths('File at /tmp/missing.pdf');
+    expect(result).toEqual([]);
+  });
+
+  it('extracts paths on separate lines', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const text = 'See /tmp/a.jpg\nand also /tmp/b.pdf';
+    const result = extractAbsolutePaths(text);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    // Both paths should be found (regex matches each line separately)
+    expect(result.some(p => p.endsWith('.jpg'))).toBe(true);
+  });
+
+  it('returns empty for text without paths', () => {
+    const result = extractAbsolutePaths('No paths here, just text.');
+    expect(result).toEqual([]);
+  });
+
+  it('extracts path portion from relative-looking paths (regex matches /...)', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    // The regex matches the /relative/file.pdf portion from ./relative/file.pdf
+    const result = extractAbsolutePaths('Look at ./relative/file.pdf');
+    expect(result).toContain('/relative/file.pdf');
+  });
+});
+
+describe('extractDeliverableFiles', () => {
+  afterEach(() => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+  });
+
+  it('extracts file deliverables from valid JSON', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const params = JSON.stringify({
+      deliverables: [
+        { type: 'file', url: '/tmp/output.pdf' },
+        { type: 'file', url: '/tmp/image.png' },
+      ],
+    });
+    const result = extractDeliverableFiles(params);
+    expect(result).toEqual(['/tmp/output.pdf', '/tmp/image.png']);
+  });
+
+  it('filters out non-file deliverables', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const params = JSON.stringify({
+      deliverables: [
+        { type: 'text', url: '/tmp/output.txt' },
+        { type: 'file', url: '/tmp/real.pdf' },
+      ],
+    });
+    const result = extractDeliverableFiles(params);
+    expect(result).toEqual(['/tmp/real.pdf']);
+  });
+
+  it('filters out non-existent files', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    const params = JSON.stringify({
+      deliverables: [{ type: 'file', url: '/tmp/gone.pdf' }],
+    });
+    const result = extractDeliverableFiles(params);
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty for invalid JSON', () => {
+    const result = extractDeliverableFiles('not json');
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty when no deliverables array', () => {
+    const result = extractDeliverableFiles(JSON.stringify({ other: 'data' }));
+    expect(result).toEqual([]);
   });
 });

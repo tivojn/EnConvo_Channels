@@ -19,13 +19,13 @@ const ALL_FILE_EXTENSIONS = new Set([
   '.mp3', '.mp4', '.wav', '.mov', '.zip', '.tar', '.gz',
 ]);
 
-function hasKnownExtension(filePath: string): boolean {
+export function hasKnownExtension(filePath: string): boolean {
   const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
   return ALL_FILE_EXTENSIONS.has(ext);
 }
 
-// Extract absolute file paths from any string
-function extractAbsolutePaths(text: string): string[] {
+/** Extract absolute file paths from any string */
+export function extractAbsolutePaths(text: string): string[] {
   const paths: string[] = [];
   // Match absolute paths with file extensions
   const regex = /(\/[\w .~\-/]+\.[\w]+)/g;
@@ -39,7 +39,7 @@ function extractAbsolutePaths(text: string): string[] {
   return paths;
 }
 
-function extractDeliverableFiles(flowParams: string): string[] {
+export function extractDeliverableFiles(flowParams: string): string[] {
   try {
     const params = JSON.parse(flowParams);
     if (!Array.isArray(params.deliverables)) return [];
