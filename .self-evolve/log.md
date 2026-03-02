@@ -518,3 +518,41 @@
 - **Tests:** 508 → 527/527 (49 suites)
 - **Commit:** bc3f319
 - **Notes:** 19 tests for checkAgent, checkTeamKB, checkEnConvoVersion, checkApiReachable, STATUS_ICON. All exported pure functions fully covered.
+
+## [2026-03-02 09:00] Self-Evolve Rounds 65-69: Tests + features
+- **Round 65:** Updated self-evolve log with rounds 53-64 stats
+- **Round 66:** Added channelBindings to handleMap in buildRosterContext (feature)
+- **Round 67:** 11 tests for testTelegram and testDiscord API probe functions
+- **Round 68:** Updated DEVLOG.md with Phase 13
+- **Round 69:** 10 tests for syncAgents (dry-run, preference sync, backup, field preservation)
+- **Tests:** 527 → 548/548 (51 suites)
+- **Commits:** 5dc5bc4 → 28caae4
+
+## [2026-03-02 09:08] Self-Evolve Round 70: Refactor agents/test.ts + doctor edge cases
+- **Status:** success (refactor + 3 tests)
+- **Tests:** 548 → 551/551 (51 suites)
+- **Commit:** 6d71bfd
+- **Notes:** Replaced 16-line duplicated response preview extraction in agents/test.ts with shared parseResponse() call. Added 3 missing doctor edge cases (missing URL, fix suggestions).
+
+## [2026-03-02 09:13] Self-Evolve Round 71: Refactor media handlers to use shared handleMessage
+- **Status:** success (major refactor)
+- **Tests:** 551/551 (51 suites)
+- **Commit:** 20a0bc0
+- **Notes:** Both Telegram and Discord media handlers were bypassing handler-core's handleMessage, duplicating error handling and missing delegation detection. Now use handleMessage after downloading attachments. Download errors handled separately. Updated all media tests.
+
+## [2026-03-02 09:15] Self-Evolve Round 72: Standardize error output in message commands
+- **Status:** success
+- **Tests:** 551/551 (51 suites)
+- **Commit:** 206749b
+- **Notes:** Replaced raw console.error with shared outputError() in message/send.ts and message/broadcast.ts. Errors now respect --json flag.
+
+---
+
+### Cumulative Stats (Round 72)
+- Source files: 84
+- Source LOC: ~6400
+- Test suites: 51
+- Test LOC: ~7100
+- Tests: 551, all passing
+- Test/source LOC ratio: ~111%
+- TypeScript: strict mode, clean compilation
