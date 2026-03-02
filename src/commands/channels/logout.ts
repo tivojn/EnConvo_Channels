@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { createAdapterInstance } from '../../channels/registry';
 import { execSync } from 'child_process';
+import { outputError } from '../../utils/command-output';
 
 export function registerLogout(parent: Command): void {
   parent
@@ -12,11 +13,7 @@ export function registerLogout(parent: Command): void {
     .action((opts) => {
       const adapter = createAdapterInstance(opts.channel, opts.name);
       if (!adapter) {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: `Unknown channel: ${opts.channel}` }));
-        } else {
-          console.error(`Unknown channel: ${opts.channel}`);
-        }
+        outputError(opts, `Unknown channel: ${opts.channel}`);
         process.exit(1);
       }
 
@@ -30,11 +27,7 @@ export function registerLogout(parent: Command): void {
           console.log(`Service "${label}" stopped.`);
         }
       } catch {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: `Failed to stop service "${label}". Is it running?` }));
-        } else {
-          console.error(`Failed to stop service "${label}". Is it running?`);
-        }
+        outputError(opts, `Failed to stop service "${label}". Is it running?`);
         process.exit(1);
       }
     });

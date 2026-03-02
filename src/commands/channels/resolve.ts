@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { createAdapterInstance } from '../../channels/registry';
+import { outputError } from '../../utils/command-output';
 
 export function registerResolve(parent: Command): void {
   parent
@@ -13,11 +14,7 @@ export function registerResolve(parent: Command): void {
     .action(async (identifier: string, opts) => {
       const adapter = createAdapterInstance(opts.channel, opts.name);
       if (!adapter) {
-        if (opts.json) {
-          console.log(JSON.stringify({ error: `Unknown channel: ${opts.channel}` }));
-        } else {
-          console.error(`Unknown channel: ${opts.channel}`);
-        }
+        outputError(opts, `Unknown channel: ${opts.channel}`);
         process.exit(1);
       }
 
