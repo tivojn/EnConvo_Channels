@@ -11,14 +11,14 @@ import { ENCONVO_PREFERENCES_DIR, BACKUPS_DIR, TEAM_KB_DIR } from '../../config/
 
 const SILENT_REFRESH_MESSAGE = `Re-read all workspace files and team KB now: IDENTITY.md, SOUL.md, AGENTS.md, and ${TEAM_KB_DIR}/. Do not announce or summarize what you read. Just confirm with "OK".`;
 
-interface SyncResult {
+export interface SyncResult {
   id: string;
   preferenceKey: string;
   status: string;
   prompt?: string;
 }
 
-function syncAgents(targets: AgentMember[], roster: ReturnType<typeof loadAgentsRoster>, opts: { dryRun?: boolean; json?: boolean; regenWorkspace?: boolean }): SyncResult[] {
+export function syncAgents(targets: AgentMember[], roster: ReturnType<typeof loadAgentsRoster>, opts: { dryRun?: boolean; json?: boolean; regenWorkspace?: boolean }): SyncResult[] {
   const results: SyncResult[] = [];
 
   for (const agent of targets) {
