@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { outputError } from '../command-output';
+import * as os from 'os';
+import { outputError, expandHome } from '../command-output';
 
 describe('outputError', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
@@ -30,5 +31,24 @@ describe('outputError', () => {
   it('outputs to stderr when opts.json is undefined', () => {
     outputError({}, 'missing thing');
     expect(errorSpy).toHaveBeenCalledWith('Error: missing thing');
+  });
+});
+
+describe('expandHome', () => {
+  it('expands ~ to home directory', () => {
+    const result = expandHome('~/Documents');
+    expect(result).toBe(`${os.homedir()}/Documents`);
+  });
+
+  it('does not modify paths without ~', () => {
+    expect(expandHome('/usr/local')).toBe('/usr/local');
+  });
+
+  it('only expands leading ~', () => {
+    expect(expandHome('/home/~user')).toBe('/home/~user');
+  });
+
+  it('handles bare ~', () => {
+    expect(expandHome('~')).toBe(os.homedir());
   });
 });

@@ -3,11 +3,7 @@ import { createAdapterInstance } from '../../channels/registry';
 import { getChannelInstance } from '../../config/store';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-import * as os from 'os';
-
-function expandHome(p: string): string {
-  return p.replace(/^~/, os.homedir());
-}
+import { expandHome } from '../../utils/command-output';
 
 export function registerLogs(parent: Command): void {
   parent

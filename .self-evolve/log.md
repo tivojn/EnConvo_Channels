@@ -306,3 +306,48 @@
   - Added `src/commands/__tests__/agents-check.test.ts` (8 tests)
   - Tests: workspace file detection (complete/missing), team KB dir, preference prompt check
   - Tests: version comparison (changed/unchanged), channel instance binding check
+
+## [2026-03-02 07:58] Self-Evolve Round 34: agents test command
+- **Status:** success
+- **Tests:** 250/250 passing (27 suites)
+- **Commit:** f7d6dc0
+- **Notes:**
+  - Added `enconvo agents test` — probes agent responsiveness via EnConvo API
+  - Reports response preview, latency, pass/fail for each agent
+  - Supports --agent filter, --message custom probe, --json output
+
+## [2026-03-02 08:00] Self-Evolve Round 35: Extract shared outputError()
+- **Status:** success
+- **Tests:** 250/250 → 253/253 (27 → 28 suites)
+- **Commit:** c13f39d
+- **Notes:**
+  - Extracted `outputError()` from 4 files → `src/utils/command-output.ts`
+  - Added 3 tests for the shared utility
+  - Net: -24 lines removed across commands
+
+## [2026-03-02 08:03] Self-Evolve Round 36: Channel test probes + unused code cleanup
+- **Status:** success
+- **Tests:** 253/253 → 259/259 (28 suites)
+- **Commit:** 02d252e
+- **Notes:**
+  - Exported testTelegram()/testDiscord() from channels/test.ts
+  - Added 9 tests for channel connection probing (fetch mocked)
+  - Fixed 3 unused code warnings (listChannelInstances, eventType, AgentsRoster)
+  - Adopted shared outputError() in channels/test.ts
+
+## [2026-03-02 08:05] Self-Evolve Round 37: Discord session tests
+- **Status:** success
+- **Tests:** 259/259 → 266/266 (29 suites)
+- **Commit:** acc6886
+- **Notes:**
+  - Added 7 tests for Discord getSessionId/resetSession
+  - Tests session isolation between channels and instances
+
+## [2026-03-02 08:08] Self-Evolve Round 38: Export/import pure function extraction
+- **Status:** success
+- **Tests:** 266/266 → 278/278 (29 suites)
+- **Commit:** 80263d3
+- **Notes:**
+  - Extracted 5 pure functions: stripTokens, hasRedactedTokens, countBundleInventory, mergeConfigs, mergeAgents
+  - Added 12 tests covering token redaction, inventory counting, merge semantics
+  - Exported ExportBundle type for testing

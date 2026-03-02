@@ -7,7 +7,7 @@ import { loadAgentsRoster } from '../config/agent-store';
 import { listAdapters } from '../channels/registry';
 import { ENCONVO_CLI_DIR, ENCONVO_CLI_CONFIG_PATH, AGENTS_CONFIG_PATH, ENCONVO_APP_PLIST } from '../config/paths';
 
-function getEnConvoAppVersion(): string | null {
+export function getEnConvoAppVersion(): string | null {
   try {
     if (!fs.existsSync(ENCONVO_APP_PLIST)) return null;
     const content = fs.readFileSync(ENCONVO_APP_PLIST, 'utf-8');
@@ -18,7 +18,7 @@ function getEnConvoAppVersion(): string | null {
   }
 }
 
-function getPackageVersion(): string {
+export function getPackageVersion(): string {
   try {
     const pkgPath = path.join(__dirname, '..', '..', 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
