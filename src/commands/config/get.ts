@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { loadGlobalConfig } from '../../config/store';
 import { getByPath } from '../../utils/dot-path';
+import { outputError } from '../../utils/command-output';
 
 export function registerGet(parent: Command): void {
   parent
@@ -12,7 +13,7 @@ export function registerGet(parent: Command): void {
       const value = getByPath(config as unknown as Record<string, unknown>, dotPath);
 
       if (value === undefined) {
-        console.error(`No value at path: ${dotPath}`);
+        outputError(opts, `No value at path: ${dotPath}`);
         process.exit(1);
       }
 

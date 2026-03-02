@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { Command } from 'commander';
 import { getAgent, removeAgent } from '../../config/agent-store';
+import { outputError } from '../../utils/command-output';
 
 export function registerDelete(parent: Command): void {
   parent
@@ -11,12 +12,7 @@ export function registerDelete(parent: Command): void {
     .action((id: string, opts) => {
       const agent = getAgent(id);
       if (!agent) {
-        const msg = `Agent "${id}" not found`;
-        if (opts.json) {
-          console.log(JSON.stringify({ error: msg }));
-        } else {
-          console.error(msg);
-        }
+        outputError(opts, `Agent "${id}" not found`);
         process.exit(1);
       }
 

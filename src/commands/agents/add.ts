@@ -3,6 +3,7 @@ import { addAgent } from '../../config/agent-store';
 import { createWorkspace } from '../../services/workspace';
 import { loadAgentsRoster } from '../../config/agent-store';
 import { getChannelInstance } from '../../config/store';
+import { outputError } from '../../utils/command-output';
 
 export function registerAdd(parent: Command): void {
   parent
@@ -56,12 +57,7 @@ export function registerAdd(parent: Command): void {
           console.log(`  Preference: ${member.preferenceKey}`);
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (opts.json) {
-          console.log(JSON.stringify({ error: msg }));
-        } else {
-          console.error(`Error: ${msg}`);
-        }
+        outputError(opts, err instanceof Error ? err.message : String(err));
         process.exit(1);
       }
     });
