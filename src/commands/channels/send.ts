@@ -125,8 +125,14 @@ export function registerSend(parent: Command): void {
           console.log(`\n→ Delivered to chat ${chatId} via @${opts.name}`);
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        outputError(opts, msg);
+        if (err instanceof Error && err.name === 'AbortError') {
+          outputError(opts, `Request timed out after ${timeoutMs}ms. Try --timeout <ms> for longer operations.`);
+        } else if (err instanceof Error && err.message.includes('fetch failed')) {
+          outputError(opts, 'Cannot reach EnConvo API. Is it running on localhost:54535?');
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          outputError(opts, msg);
+        }
         process.exit(1);
       }
     });
