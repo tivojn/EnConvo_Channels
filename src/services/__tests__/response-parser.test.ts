@@ -191,7 +191,7 @@ describe('detectDelegations', () => {
   });
 
   it('detects arrow delegations', () => {
-    const result = detectDelegations('Finance question → vivienne can help.', roster);
+    const result = detectDelegations('Finance question → vivienne can help with the budget analysis.', roster);
     expect(result).toHaveLength(1);
     expect(result[0].targetAgentId).toBe('vivienne');
   });
@@ -213,7 +213,7 @@ describe('detectDelegations', () => {
   });
 
   it('detects multiple delegations', () => {
-    const result = detectDelegations('Ask @elena for copy and @timothy for code.', roster);
+    const result = detectDelegations('Ask @elena to write the marketing copy for the launch, and ask @timothy to review the deployment script.', roster);
     expect(result).toHaveLength(2);
     expect(result[0].targetAgentId).toBe('elena');
     expect(result[1].targetAgentId).toBe('timothy');
@@ -243,11 +243,19 @@ describe('detectDelegations', () => {
       '@Enconvo_Elena_Content_Dept_bot': 'elena',
     };
     const result = detectDelegations(
-      '@timothy for code, @Enconvo_Elena_Content_Dept_bot for copy.',
+      '@timothy please review the deployment architecture, and @Enconvo_Elena_Content_Dept_bot please write the launch copy.',
       roster,
       handleMap,
     );
     expect(result).toHaveLength(2);
+  });
+
+  it('skips short informational mentions (roster tables, labels)', () => {
+    const result = detectDelegations(
+      '| @vivienne | Finance |\n| @elena | Content |',
+      roster,
+    );
+    expect(result).toHaveLength(0);
   });
 
   it('extracts sentence after mention as message', () => {

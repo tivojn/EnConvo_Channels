@@ -128,7 +128,10 @@ export function detectDelegations(
     // Use full remaining text after the mention as delegation context (up to 1000 chars)
     const afterMention = text.slice(match.index + match[0].length).trim();
     const message = afterMention.slice(0, 1000).trim();
-    if (message && !delegations.find(d => d.targetAgentId === targetId)) {
+    // Skip informational mentions — roster tables, labels, short fragments
+    // Real delegations have actionable context ("write a tagline", "check the budget")
+    const isInformational = message.length < 10 || /^[|—\-:()\\]/.test(message);
+    if (!isInformational && !delegations.find(d => d.targetAgentId === targetId)) {
       delegations.push({ targetAgentId: targetId, message });
     }
   }
