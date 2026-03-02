@@ -1,5 +1,37 @@
 # Self-Evolution Log
 
+## [2026-03-02 13:30] Round 84-88: Core Agent Fixes + Live Testing + Universal File Delivery
+- **Status:** success
+- **Changes:** 15 files modified, 2 new files, ~550 insertions
+- **Tests:** 571 passing (was 558)
+- **Commits:** 5 (3544164, b73835a, b7dcad8, 76733e8 + evaluation)
+- **Duration:** ~2.5 hours (including interactive live testing)
+- **Bugs fixed:** 9
+  - Session isolation (shared `-team` session → per-agent)
+  - Truncated delegation context (200 chars → 1000 + original question)
+  - Missing apiOptions in delegation chain
+  - Silent delegation failures (no user feedback)
+  - Thinking content leaking to users
+  - `channels send` had no delegation support
+  - Generated files not extracted from flowResults
+  - Portrait files leaking as false deliverables (flowParams input vs output)
+  - File extension whitelist blocking audio/video/documents
+- **Features added:** 3
+  - `channels deploy` command with mirror sync
+  - `channels send` delegation support with roster detection
+  - `--timeout` flag on `channels send`
+- **Live test results:** All file types verified on Telegram + Discord
+  - Images (selfie generation): PASS
+  - Audio (TTS mp3): PASS
+  - PPTX (12-slide report): PASS
+  - DOCX (code review memo): PASS
+  - No portrait leak: PASS
+  - Agent identity (12 rounds): PASS
+  - Agent delegation (Mavis → Elena, Mavis → Vivienne): PASS
+- **[LIVE-TEST-BUG]** Discord portrait leak — services running stale mirror code. Fixed by adding syncMirror() to deploy command.
+- **[LIVE-TEST-BUG]** Vivienne pptx timeout — 120s default too short. Increased to 300s.
+- **SELF-DECIDED:** flowParams should never be scanned for paths except Deliverable — all tool inputs are references, not outputs
+
 ## [2026-03-02 06:30] Phase 12: Bug Fixes & Architecture Hardening
 - **Status:** success
 - **Changes:** 10 files, 326 insertions
