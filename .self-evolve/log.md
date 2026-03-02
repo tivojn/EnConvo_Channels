@@ -576,13 +576,20 @@
 - **Commit:** 8c56cff
 - **Notes:** Removed duplicate getCliVersion() and getEnConvoAppVersion() from version.ts. These were private copies of the exported functions in info.ts (already tested in info.test.ts). version.ts now imports from info.ts. File reduced from 52 to 30 lines (22 lines removed).
 
+## [2026-03-02 09:48] Self-Evolve Round 82: Remove unused dotenv dependency
+- **Status:** success (cleanup)
+- **Tests:** 558/558 (51 suites)
+- **Commit:** 8e301b3
+- **Notes:** dotenv was a legacy dependency from the original .env-based config. Never imported in source code — config now uses ~/.enconvo_cli/config.json. Removed from package.json, regenerated lockfile.
+
 ---
 
-### Cumulative Stats (Round 80)
+### Cumulative Stats (Round 82)
 - Source files: 84
 - Source LOC: ~6106
 - Test suites: 51
 - Test LOC: ~7146
 - Tests: 558, all passing
 - Test/source LOC ratio: ~117%
+- Production dependencies: 3 (commander, grammy, discord.js)
 - TypeScript: strict mode, clean compilation
