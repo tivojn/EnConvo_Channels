@@ -132,17 +132,13 @@ export function parseResponse(
 
       if (item.type === 'flow_step') {
         // Extract generated files from flowResults (images, documents, etc.)
-        let gotOutputFiles = false;
         if (item.flowResults) {
           for (const result of item.flowResults) {
             if (!result.content) continue;
             for (const c of result.content) {
-              // Image outputs (image_to_image, image_generation)
               if (c.type === 'image_url' && c.image_url?.url && fs.existsSync(c.image_url.url) && fs.statSync(c.image_url.url).isFile()) {
                 filePaths.push(c.image_url.url);
-                gotOutputFiles = true;
               }
-              // Text results may contain file paths (pptx, docx, xlsx, etc.)
               if (c.type === 'text' && c.text) {
                 filePaths.push(...extractAbsolutePaths(c.text));
               }
@@ -150,16 +146,11 @@ export function parseResponse(
           }
         }
 
-        if (item.flowParams) {
-          // Deliverable tool has structured file references
-          if (item.flowName === 'Deliverable') {
-            filePaths.push(...extractDeliverableFiles(item.flowParams));
-          }
-          // Only scan flowParams for paths if no image/file outputs were found
-          // (flowParams contains input files like portrait references — not deliverables)
-          if (!gotOutputFiles) {
-            filePaths.push(...extractAbsolutePaths(item.flowParams));
-          }
+        // Only Deliverable flow_steps have output files in flowParams.
+        // All other flow_steps (code_runner, image_to_image, etc.) have INPUT files
+        // in flowParams — those are references, not deliverables.
+        if (item.flowParams && item.flowName === 'Deliverable') {
+          filePaths.push(...extractDeliverableFiles(item.flowParams));
         }
       }
     }
