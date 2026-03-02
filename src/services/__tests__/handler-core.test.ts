@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChannelIO, HandlerContext, RosterContext, handleMessage, sendParsedResponse } from '../handler-core';
+import { ChannelIO, HandlerContext, RosterContext, handleMessage, sendParsedResponse, buildRosterContext } from '../handler-core';
 
 // Mock dependencies
 vi.mock('../enconvo-client', () => ({
@@ -14,6 +14,31 @@ vi.mock('../agent-router', () => ({
   routeToAgent: vi.fn(),
 }));
 
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return { ...actual, existsSync: vi.fn().mockReturnValue(false) };
+});
+
+vi.mock('../../config/agent-store', () => ({
+  loadAgentsRoster: vi.fn().mockReturnValue({
+    members: [
+      {
+        id: 'mavis', name: 'Mavis', emoji: '👑', role: 'Lead',
+        bindings: { instanceName: 'mavis', telegramBot: 'Mavis_bot' },
+      },
+      {
+        id: 'elena', name: 'Elena', emoji: '✍️', role: 'Content',
+        bindings: { instanceName: 'elena', telegramBot: 'Elena_bot' },
+      },
+      {
+        id: 'timothy', name: 'Timothy', emoji: '💻', role: 'Dev',
+        bindings: { instanceName: 'timothy' },
+      },
+    ],
+  }),
+}));
+
+import * as fs from 'fs';
 import { callEnConvo } from '../enconvo-client';
 import { parseResponse } from '../response-parser';
 import { routeToAgent } from '../agent-router';
@@ -221,5 +246,72 @@ describe('sendParsedResponse', () => {
     const io = createMockIO();
     await sendParsedResponse(io, { text: '', filePaths: [], delegations: [] });
     expect(io.sendText).toHaveBeenCalledWith('(EnConvo returned an empty response)');
+  });
+
+  it('splits text when over maxMessageLength', async () => {
+    const io = createMockIO();
+    (io as any).maxMessageLength = 10;
+    // Create text that exceeds 10 chars
+    const text = 'aaaa bbbbb ccccc ddddd';
+    await sendParsedResponse(io, { text, filePaths: [], delegations: [] });
+    // Should have been split into multiple sendText calls
+    const calls = vi.mocked(io.sendText).mock.calls;
+    expect(calls.length).toBeGreaterThan(1);
+    // Rejoined text should cover original content
+    const joined = calls.map(c => c[0]).join(' ');
+    expect(joined).toContain('aaaa');
+    expect(joined).toContain('ddddd');
+  });
+
+  it('handles sendFile exception and reports failure', async () => {
+    const io = createMockIO();
+    vi.mocked(io.sendFile).mockRejectedValue(new Error('upload failed'));
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+
+    await sendParsedResponse(io, { text: 'hi', filePaths: ['/tmp/x.pdf'], delegations: [] });
+    expect(io.sendText).toHaveBeenCalledWith('(1 file(s) could not be delivered)');
+  });
+});
+
+describe('buildRosterContext', () => {
+  it('returns rosterIds for all members', () => {
+    const ctx = buildRosterContext();
+    expect(ctx.rosterIds).toEqual(['mavis', 'elena', 'timothy']);
+  });
+
+  it('builds handleMap from telegramBot bindings', () => {
+    const ctx = buildRosterContext();
+    expect(ctx.handleMap).toEqual({
+      Mavis_bot: 'mavis',
+      Elena_bot: 'elena',
+    });
+  });
+
+  it('omits members without telegramBot from handleMap', () => {
+    const ctx = buildRosterContext();
+    // timothy has no telegramBot binding
+    expect(Object.values(ctx.handleMap)).not.toContain('timothy');
+  });
+
+  it('sets currentAgent when instanceId matches', () => {
+    const ctx = buildRosterContext('mavis');
+    expect(ctx.currentAgent).toBeDefined();
+    expect(ctx.currentAgent!.id).toBe('mavis');
+  });
+
+  it('returns undefined currentAgent when instanceId does not match', () => {
+    const ctx = buildRosterContext('nonexistent');
+    expect(ctx.currentAgent).toBeUndefined();
+  });
+
+  it('returns undefined currentAgent when no instanceId', () => {
+    const ctx = buildRosterContext();
+    expect(ctx.currentAgent).toBeUndefined();
+  });
+
+  it('includes all members in context', () => {
+    const ctx = buildRosterContext();
+    expect(ctx.members).toHaveLength(3);
+    expect(ctx.members.map(m => m.id)).toEqual(['mavis', 'elena', 'timothy']);
   });
 });
