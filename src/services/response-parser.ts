@@ -1,6 +1,16 @@
 import * as fs from 'fs';
 import { EnConvoResponse } from './enconvo-client';
 
+/**
+ * Strip serialized thinking JSON blocks from text content.
+ * Some models embed {"type":"thinking",...} as text strings instead of typed content items.
+ */
+function stripThinkingJson(text: string): string {
+  if (!text.includes('"type":"thinking"')) return text;
+  // Match JSON objects containing type:thinking — they can be very large with signatures
+  return text.replace(/\{[^{}]*"type"\s*:\s*"thinking"[^}]*(?:\{[^}]*\}[^}]*)*\}/g, '').trim();
+}
+
 export interface DelegationDirective {
   targetAgentId: string;
   message: string;
@@ -126,8 +136,12 @@ export function parseResponse(
     for (const item of msg.content) {
       if (item.type === 'thinking') continue;
       if (item.type === 'text' && item.text) {
-        textParts.push(item.text);
-        filePaths.push(...extractAbsolutePaths(item.text));
+        // Strip serialized thinking JSON that some models embed in text content
+        const cleaned = stripThinkingJson(item.text);
+        if (cleaned) {
+          textParts.push(cleaned);
+          filePaths.push(...extractAbsolutePaths(cleaned));
+        }
       }
 
       if (item.type === 'flow_step') {
