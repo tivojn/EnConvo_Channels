@@ -546,13 +546,37 @@
 - **Commit:** 206749b
 - **Notes:** Replaced raw console.error with shared outputError() in message/send.ts and message/broadcast.ts. Errors now respect --json flag.
 
+## [2026-03-02 09:24] Self-Evolve Round 75: getAgent/setAgent tests + channels/add outputError
+- **Status:** success (7 tests + refactor)
+- **Tests:** 551 → 558/558 (51 suites)
+- **Commit:** 95bdb4d
+- **Notes:** Added 7 tests for getAgent/setAgent in session-manager (fallback chain, override persistence, unknown agent, no-agents error). Refactored channels/add.ts to use shared outputError() — replaced 12 lines of duplicated inline JSON/stderr error handling.
+
+## [2026-03-02 09:26] Self-Evolve Round 76: Standardize outputError in agents set-identity, test, sync
+- **Status:** success (refactor)
+- **Tests:** 558/558 (51 suites)
+- **Commit:** e6f88f8
+- **Notes:** Replaced 6 inline JSON/stderr error blocks (18+ lines duplicated if/else) with shared outputError() calls in 3 agent commands.
+
+## [2026-03-02 09:28] Self-Evolve Round 77: Standardize outputError in channels logout, resolve, logs, capabilities
+- **Status:** success (refactor)
+- **Tests:** 558/558 (51 suites)
+- **Commits:** c553690, 1d32167
+- **Notes:** Replaced 8 inline JSON/stderr error blocks with shared outputError() calls in 7 files (channels logout, resolve, logs, capabilities + agents add, delete, config get). All commands with --json flags now use the shared utility — zero inline error handling patterns remain.
+
+## [2026-03-02 09:32] Self-Evolve Round 78: Consolidate duplicate imports
+- **Status:** success (cleanup)
+- **Tests:** 558/558 (51 suites)
+- **Commit:** 40963d0
+- **Notes:** Merged split import statements from same module into single lines in channels/send.ts, agents/add.ts, agents/check.ts.
+
 ---
 
-### Cumulative Stats (Round 72)
+### Cumulative Stats (Round 78)
 - Source files: 84
-- Source LOC: ~6400
+- Source LOC: ~6350
 - Test suites: 51
-- Test LOC: ~7100
-- Tests: 551, all passing
-- Test/source LOC ratio: ~111%
+- Test LOC: ~7146
+- Tests: 558, all passing
+- Test/source LOC ratio: ~112%
 - TypeScript: strict mode, clean compilation

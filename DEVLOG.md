@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-02 (Phase 14)
+**Last updated:** 2026-03-02 (Phase 15)
 
 ---
 
@@ -1453,3 +1453,44 @@ Continued autonomous self-evolution. Focused on code quality: eliminating duplic
 - All commands with `--json` flag now consistently output errors as JSON
 - 551 tests, 51 suites, all passing
 - Test/source LOC ratio: ~111%
+
+---
+
+## Phase 15: Error Handling Standardization & Test Coverage (Rounds 75-78)
+
+**Session date:** 2026-03-02
+
+### Summary
+Systematic completion of `outputError()` adoption across all CLI commands, plus critical session-manager test coverage. Test count: 551 → 558.
+
+### Key Improvements
+
+**Error Output Standardization (Complete):**
+Completed the systematic adoption of `outputError()` across all CLI commands with `--json` flags. Before this phase, 14+ commands had inline `if (opts.json) { console.log(JSON.stringify({error:msg})); } else { console.error(msg); }` blocks (4-6 lines each). All replaced with single `outputError(opts, msg)` calls:
+- `channels/add.ts` — 3 error blocks → 3 `outputError` calls
+- `channels/logout.ts` — 2 error blocks → 2 `outputError` calls
+- `channels/resolve.ts` — 1 error block → 1 `outputError` call
+- `channels/logs.ts` — 2 error blocks → 2 `outputError` calls
+- `channels/capabilities.ts` — 1 error block → 1 `outputError` call
+- `agents/set-identity.ts` — 2 error blocks → 2 `outputError` calls
+- `agents/test.ts` — 2 error blocks → 2 `outputError` calls
+- `agents/sync.ts` — 4 error blocks → 4 `outputError` calls
+- `agents/add.ts` — 1 error block → 1 `outputError` call
+- `agents/delete.ts` — 1 error block → 1 `outputError` call
+- `config/get.ts` — 1 error block → 1 `outputError` call
+
+**Result:** Zero inline JSON/stderr error handling patterns remain in the codebase. Every command with `--json` flag uses the shared utility.
+
+**Session Manager Tests:**
+- Added 7 tests for `getAgent` and `setAgent` (previously untested critical business logic)
+- Tests: defaultAgent lookup, first-agent fallback, no-agents error throw, Map override persistence
+
+**Import Cleanup:**
+- Consolidated 3 split imports (same module on two lines → single import) in channels/send.ts, agents/add.ts, agents/check.ts
+
+### Metrics
+- 84 source files, ~6350 source LOC
+- 51 test suites, ~7146 test LOC
+- 558 tests, all passing
+- Test/source LOC ratio: ~112%
+- TypeScript: strict mode, clean compilation
