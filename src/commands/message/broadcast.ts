@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { listChannelInstances, loadGlobalConfig } from '../../config/store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
+import { outputError } from '../../utils/command-output';
 
 export function registerMessageBroadcast(parent: Command): void {
   parent
@@ -19,7 +20,7 @@ export function registerMessageBroadcast(parent: Command): void {
       const targets = opts.targets.split(',').map((t: string) => t.trim()).filter(Boolean);
 
       if (targets.length === 0) {
-        console.error('No targets specified');
+        outputError(opts, 'No targets specified');
         process.exit(1);
       }
 
@@ -36,11 +37,11 @@ export function registerMessageBroadcast(parent: Command): void {
       } else if (opts.name) {
         const inst = listChannelInstances(opts.channel)[opts.name];
         if (!inst) {
-          console.error(`Instance "${opts.name}" not found for channel "${opts.channel}"`);
+          outputError(opts, `Instance "${opts.name}" not found for channel "${opts.channel}"`);
           process.exit(1);
         }
         if (!inst.agent) {
-          console.error(`Instance "${opts.name}" has no agent configured`);
+          outputError(opts, `Instance "${opts.name}" has no agent configured`);
           process.exit(1);
         }
         instances.push({ name: opts.name, agent: inst.agent, token: inst.token });
@@ -56,7 +57,7 @@ export function registerMessageBroadcast(parent: Command): void {
       }
 
       if (instances.length === 0) {
-        console.error(`No enabled instances found for channel "${opts.channel}"`);
+        outputError(opts, `No enabled instances found for channel "${opts.channel}"`);
         process.exit(1);
       }
 

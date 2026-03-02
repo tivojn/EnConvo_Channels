@@ -5,6 +5,7 @@ import { loadAgentsRoster } from '../../config/agent-store';
 import { callEnConvo } from '../../services/enconvo-client';
 import { parseResponse } from '../../services/response-parser';
 import { deliverTelegram, deliverDiscord } from '../../services/channel-deliver';
+import { outputError } from '../../utils/command-output';
 
 export function registerMessageSend(parent: Command): void {
   parent
@@ -25,7 +26,7 @@ export function registerMessageSend(parent: Command): void {
         const roster = loadAgentsRoster();
         const agent = roster.members.find(m => m.id === opts.agent);
         if (!agent) {
-          console.error(`Agent "${opts.agent}" not found`);
+          outputError(opts, `Agent "${opts.agent}" not found`);
           process.exit(1);
         }
         // Find binding for this channel
@@ -35,24 +36,24 @@ export function registerMessageSend(parent: Command): void {
         } else if (opts.channel === 'telegram') {
           instanceName = agent.bindings.instanceName;
         } else {
-          console.error(`Agent "${opts.agent}" has no binding for channel "${opts.channel}"`);
+          outputError(opts, `Agent "${opts.agent}" has no binding for channel "${opts.channel}"`);
           process.exit(1);
         }
       }
 
       if (!instanceName) {
-        console.error('Provide --name or --agent to identify the instance');
+        outputError(opts, 'Provide --name or --agent to identify the instance');
         process.exit(1);
       }
 
       const instance = getChannelInstance(opts.channel, instanceName);
       if (!instance) {
-        console.error(`Instance "${instanceName}" not found for channel "${opts.channel}"`);
+        outputError(opts, `Instance "${instanceName}" not found for channel "${opts.channel}"`);
         process.exit(1);
       }
 
       if (!instance.agent) {
-        console.error(`Instance "${instanceName}" has no agent configured`);
+        outputError(opts, `Instance "${instanceName}" has no agent configured`);
         process.exit(1);
       }
 
@@ -93,12 +94,7 @@ export function registerMessageSend(parent: Command): void {
           }
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (opts.json) {
-          console.log(JSON.stringify({ error: msg }));
-        } else {
-          console.error(`Error: ${msg}`);
-        }
+        outputError(opts, err instanceof Error ? err.message : String(err));
         process.exit(1);
       }
     });
