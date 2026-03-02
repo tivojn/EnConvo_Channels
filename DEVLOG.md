@@ -2,7 +2,7 @@
 
 > Living document. Updated as the project evolves. Read this to understand what exists, why decisions were made, and what's next.
 
-**Last updated:** 2026-03-02 (Phase 12)
+**Last updated:** 2026-03-02 (Phase 14)
 
 ---
 
@@ -1425,3 +1425,31 @@ Autonomous self-evolution focused on test coverage expansion, shared utility ext
 2. **Class-based mocks** for constructors (Grammy Bot, discord.js AttachmentBuilder)
 3. **vi.mock('fs') + vi.importActual** for ESM module mocking
 4. **Handler capture pattern** for testing Grammy bot.command() registrations
+
+---
+
+## Phase 14: Code Quality & Consistency (Rounds 68-74)
+
+**Session date:** 2026-03-02
+
+### Summary
+Continued autonomous self-evolution. Focused on code quality: eliminating duplication, standardizing patterns, and completing test edge cases. Test count: 548 → 551.
+
+### Key Improvements
+
+**Code Deduplication:**
+- **agents/test.ts**: Replaced 16-line inline response preview extraction with `parseResponse()` from shared service (eliminates duplicated parsing logic)
+- **Media handlers refactored to shared `handleMessage`**: Both Telegram and Discord media handlers were bypassing `handler-core.handleMessage`, duplicating error handling (timeout, connectivity, generic) and missing delegation detection entirely. Now both download attachments first, then call `handleMessage` with enriched text. Download errors handled separately. This enables delegation detection on media messages.
+
+**Error Output Consistency:**
+- `message/send.ts` and `message/broadcast.ts`: Replaced raw `console.error` calls with shared `outputError()` utility. Errors now output as structured JSON when `--json` flag is used.
+
+**Test Edge Cases:**
+- `doctor.test.ts`: Added 3 missing edge cases — missing EnConvo URL detection, fix suggestion for config directory, fix suggestion for missing workspace.
+- `agents sync.test.ts`: 10 tests for `syncAgents` pure function (dry-run, missing preference, sync, field preservation, backup, workspace regen).
+
+### Architecture Notes
+- Media handlers now share the same error handling and delegation pipeline as text handlers
+- All commands with `--json` flag now consistently output errors as JSON
+- 551 tests, 51 suites, all passing
+- Test/source LOC ratio: ~111%
