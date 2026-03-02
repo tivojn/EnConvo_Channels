@@ -3,6 +3,7 @@ import { loadGlobalConfig } from '../../../config/store';
 import { handleMessage, buildRosterContext } from '../../../services/handler-core';
 import { createDiscordIO } from '../utils/file-sender';
 import { getSessionId } from './commands';
+import { stripDiscordMention } from '../../../utils/mention';
 
 export function createTextMessageHandler(client: Client, agentPath?: string, instanceId?: string) {
   const roster = buildRosterContext(instanceId);
@@ -14,7 +15,7 @@ export function createTextMessageHandler(client: Client, agentPath?: string, ins
 
     // Strip @mention of this bot from text
     if (client.user) {
-      text = text.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
+      text = stripDiscordMention(text, client.user.id);
     }
 
     // Bare @mention with no text — use replied-to message or nudge

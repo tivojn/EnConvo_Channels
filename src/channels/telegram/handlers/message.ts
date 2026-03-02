@@ -2,6 +2,7 @@ import { Context } from 'grammy';
 import { getSessionId, getAgent } from '../../../services/session-manager';
 import { handleMessage, buildRosterContext } from '../../../services/handler-core';
 import { createTelegramIO } from '../utils/telegram-io';
+import { stripTelegramMention } from '../../../utils/mention';
 
 export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: string) {
   const roster = buildRosterContext(instanceId);
@@ -13,7 +14,7 @@ export function createTextMessageHandler(pinnedAgentPath?: string, instanceId?: 
 
     // Strip @mention from text before sending to EnConvo
     if (ctx.me?.username) {
-      text = text.replace(new RegExp(`@${ctx.me.username}`, 'gi'), '').trim();
+      text = stripTelegramMention(text, ctx.me.username);
     }
 
     // Bare @mention with no text — use replied-to message or nudge
